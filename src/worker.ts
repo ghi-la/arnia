@@ -1,8 +1,10 @@
 /* eslint-disable no-console -- worker process: progress/status output is the point */
 // pg-boss worker entry point, run as its own container/process (see docker-compose.yml).
-// Job handlers (email sending, IMAP polling, reminders, digests, cleanup) are registered
-// here as they're built in later phases.
+// Job handlers (IMAP polling, reminders, digests, cleanup) are registered here
+// as they're built in later phases.
 import { PgBoss } from 'pg-boss';
+import { QUEUE_SEND_EMAIL } from '$lib/server/jobs/queue';
+import { sendEmailHandler } from '$lib/server/jobs/handlers/send-email';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -24,6 +26,12 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 
 try {
 	await boss.start();
+	await boss.createQueue(QUEUE_SEND_EMAIL, {
+		retryLimit: 5,
+		retryBackoff: true,
+		retryDelay: 5
+	});
+	await boss.work(QUEUE_SEND_EMAIL, sendEmailHandler);
 	console.log('[worker] started, waiting for jobs...');
 } catch (err) {
 	console.error('[worker] failed to start:', err);

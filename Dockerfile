@@ -23,6 +23,13 @@ RUN npm install -g pnpm@12.4.2
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
+# SvelteKit's production build imports every server module once (post-build
+# route analysis) to inspect its exports. Better Auth refuses to construct
+# without a real secret, so it needs *some* value here — never used at
+# runtime: this ENV only applies within this build stage, and the real
+# values come from docker-compose's environment at container start.
+ENV DATABASE_URL=postgres://build:build@localhost:5432/build
+ENV BETTER_AUTH_SECRET=build-time-placeholder-not-used-at-runtime
 RUN pnpm build
 RUN pnpm prune --prod
 

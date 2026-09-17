@@ -60,6 +60,7 @@ jobs:
     env:
       DATABASE_URL: postgres://arnia:arnia@localhost:5432/arnia
       BETTER_AUTH_SECRET: ci-test-secret-not-for-production-use-000000
+      BETTER_AUTH_URL: http://localhost:4173
       APP_ENCRYPTION_KEY: Y2ktdGVzdC1rZXktbm90LWZvci1wcm9kdWN0aW9uLXVzZQ==
       EMAIL_PROVIDER: none
     steps:

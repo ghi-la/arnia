@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+// Starts already logged in as the admin created by e2e/global-setup.ts —
+// the app shell lives behind auth (spec §2.3), so these tests don't need to
+// exercise login themselves (see e2e/auth.spec.ts for that).
+test.use({ storageState: 'e2e/.auth/admin.json' });
+
 test('home page renders the app shell', async ({ page }) => {
 	await page.goto('/');
 

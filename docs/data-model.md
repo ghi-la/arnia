@@ -1,9 +1,13 @@
 # Data model
 
-This is the target schema from `docs/PLAN.md` §3, rendered as an ER diagram. **As of Phase 1
-(Foundation), only `organization` is actually implemented** (`src/lib/server/db/schema/`) —
-the rest is added incrementally, one module per phase, and this diagram grows to match. Treat
-anything not yet in `src/lib/server/db/schema/` as a design draft, not current state.
+This is the target schema from `docs/PLAN.md` §3, rendered as an ER diagram. **As of Phase 2,
+`organization`, the Better Auth tables (`user`/`session`/`account`/`verification`/
+`two_factor`), and RBAC (`role`/`role_permission`/`user_role`/`invitation`/`activity_event`/
+`email_log`) are implemented** (`src/lib/server/db/schema/`) — the rest is added incrementally,
+one module per phase, and this diagram grows to match. Treat anything not yet in
+`src/lib/server/db/schema/` as a design draft, not current state. Note: `event_team_member` is
+shown below as planned (Phase 4, alongside `event`) even though core RBAC is done — it needs
+the `event` table, which doesn't exist yet.
 
 Money columns are integer minor units (`bigint`) + a `currency` code — never floating point.
 Most tables also carry `created_at`/`updated_at` (and often `created_by`), omitted below to
@@ -20,6 +24,9 @@ erDiagram
         text timezone
         text default_locale
     }
+    USER ||--o{ SESSION : has
+    USER ||--o{ ACCOUNT : has
+    USER ||--o{ TWO_FACTOR : has
     USER ||--o{ USER_ROLE : has
     ROLE ||--o{ USER_ROLE : "assigned via"
     ROLE ||--o{ ROLE_PERMISSION : grants

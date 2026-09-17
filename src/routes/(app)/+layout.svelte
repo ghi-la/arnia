@@ -3,6 +3,8 @@
 	import Sidebar from '$lib/components/nav/sidebar.svelte';
 	import QuickActionButton from '$lib/components/nav/quick-action-button.svelte';
 	import ThemeToggle from '$lib/components/theme-toggle.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { LogOut } from '@lucide/svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { Snippet } from 'svelte';
 
@@ -23,6 +25,11 @@
 		class="border-border bg-card/95 fixed inset-x-0 top-0 z-20 flex h-14 items-center justify-end gap-1 border-b px-4 pt-[var(--safe-top)] backdrop-blur-sm md:left-60"
 	>
 		<ThemeToggle />
+		<form method="POST" action="/logout">
+			<Button type="submit" variant="ghost" size="icon" aria-label={m.logout_action()}>
+				<LogOut class="size-5" />
+			</Button>
+		</form>
 	</header>
 
 	<main
