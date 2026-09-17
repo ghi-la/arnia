@@ -1,0 +1,19 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"app_name": "Arnia",
+	"nav_home": "Home",
+	"nav_events": "Events",
+	"nav_inventory": "Inventory",
+	"nav_finance": "Finance",
+	"nav_more": "More",
+	"theme_toggle": "Toggle theme",
+	"quick_action_open": "Quick actions",
+	"quick_action_new_expense": "New expense",
+	"quick_action_stock_movement": "Stock movement",
+	"quick_action_new_event": "New event",
+	"quick_action_scan_item": "Scan item",
+	"skip_to_content": "Skip to content",
+	"install_app": "Install the app",
+	"notifications": "Notifications",
+	"search_placeholder": "Search..."
+}

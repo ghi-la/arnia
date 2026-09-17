@@ -1,0 +1,13 @@
+build/
+.svelte-kit/
+dist/
+drizzle/
+src/lib/paraglide/
+coverage/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+messages/*.json
+project.inlang/
+static/
+LICENSE
