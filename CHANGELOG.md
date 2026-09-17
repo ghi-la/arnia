@@ -30,4 +30,10 @@ versioning releases yet (pre-1.0, see `docs/PLAN.md`).
   `CLAUDE.md`, CI (GitHub Actions: lint, type-check, unit tests, Docker build), Dependabot.
 - `docs/PLAN.md`: full execution plan, pinned dependency versions, database schema draft.
 
+### Fixed
+
+- `backup` service could run its first `pg_dump` before Postgres finished starting up
+  (`depends_on: [db]` with no health condition), logging a harmless but noisy connection-refused
+  error on a cold `docker compose up`. Now waits on `db`'s healthcheck like the other services.
+
 [Unreleased]: https://github.com/your-org/arnia/compare/HEAD
