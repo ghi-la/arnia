@@ -85,15 +85,44 @@ jobs:
           retention-days: 14
 
   docker-build:
-    name: Docker build
+    name: Docker build & stack smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: arnia:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      - name: Build images
+        run: docker compose build db app worker
+
+      - name: Bring up the stack and check every container stays healthy
+        # A successful build only means the image compiled — it doesn't catch
+        # a container crash-looping at start (e.g. a runtime file missing
+        # from the image, or an import that only resolved inside the build
+        # context). Only actually starting the containers catches that.
+        run: |
+          cp .env.example .env
+          ./scripts/generate-secrets.sh
+          sed -i 's/^APP_DOMAIN=.*/APP_DOMAIN=localhost/' .env
+          docker compose up -d db app worker
+
+          for i in $(seq 1 24); do
+            sleep 5
+            svc_status="$(docker compose ps --all --format '{{.Service}}: {{.Status}}')"
+            echo "$svc_status"
+            if echo "$svc_status" | grep -qi "restarting\|exited"; then
+              echo "::error::a service is restarting or has exited"
+              docker compose logs
+              exit 1
+            fi
+            if echo "$svc_status" | grep -qi "^app: Up.*healthy"; then
+              echo "all services up"
+              exit 0
+            fi
+          done
+
+          echo "::error::timed out waiting for services to become healthy"
+          docker compose logs
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

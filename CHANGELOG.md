@@ -70,5 +70,12 @@ versioning releases yet (pre-1.0, see `docs/PLAN.md`).
   available at build time. `db/index.ts` now connects lazily on first real use; the
   Dockerfile's build stage sets harmless placeholder values for the rest (never copied into
   the runtime image).
+- The `worker` container crash-looped in production (`Cannot find package '$lib'`): the
+  runtime image never shipped the `src/lib/server/**` files `src/worker.ts` imports, and
+  `$lib/*` doesn't resolve there anyway (no tsconfig in that image). Fixed by copying
+  `src/lib/server` into the runtime image and switching the worker's whole import chain to
+  relative paths. The `docker-build` CI job now actually starts the stack and waits for every
+  container to report healthy, rather than only building the image — that gap is what let this
+  one through.
 
 [Unreleased]: https://github.com/your-org/arnia/compare/HEAD

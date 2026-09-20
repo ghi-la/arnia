@@ -1,6 +1,8 @@
 import { PgBoss } from 'pg-boss';
-import { db } from '$lib/server/db';
-import { emailLog } from '$lib/server/db/schema';
+// Relative imports: this module is loaded by src/worker.ts under plain tsx
+// in production, where `$lib/*` doesn't resolve — see docs/PLAN.md §4.
+import { db } from '../db';
+import { emailLog } from '../db/schema';
 
 export const QUEUE_SEND_EMAIL = 'send-email';
 

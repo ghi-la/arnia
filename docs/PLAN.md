@@ -238,3 +238,18 @@ See `docs/data-model.md` (added in Phase 1) for the generated ER diagram.
     `Dockerfile` sets harmless placeholder `ENV DATABASE_URL=`/`BETTER_AUTH_SECRET=` values —
     these apply only within that build stage, never copied into the runtime stage or its image,
     and are always overridden by docker-compose's real environment at container start.
+  - **The `worker` container crash-looped in production** (`ERR_MODULE_NOT_FOUND: Cannot find
+package '$lib'`) once `src/worker.ts` grew real imports in Phase 2. Two compounding causes,
+    both now fixed: (1) the runtime image only ever copied `worker.ts` and `migrate.ts` as
+    loose files, never the `src/lib/server/**` modules they import — the Dockerfile now copies
+    the whole `src/lib/server` directory instead; (2) `$lib/*` is a SvelteKit/Vite alias
+    resolved via tsconfig paths, which plain `tsx` can resolve in a full checkout (dev, CI) but
+    has no reason to work from a stripped-down image that ships no tsconfig at all. Fixed at
+    the source: `worker.ts` and everything it imports (`jobs/queue.ts`,
+    `jobs/handlers/send-email.ts`) now use relative imports, so this dependency chain doesn't
+    need path-alias resolution to work anywhere. Caught by actually restarting the running
+    Docker Compose stack after the Phase 2 auth/RBAC changes, not by any automated test — a
+    successful `docker build` never exercises the containers, so it can't catch a crash loop.
+    The `docker-build` CI job now brings the stack up for real (`db`, `app`, `worker`) after
+    building and polls `docker compose ps` until `app` reports healthy or any service starts
+    restarting/exits, failing the job (with logs) either way — see `.github/workflows/ci.yml`.

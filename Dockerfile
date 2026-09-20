@@ -51,8 +51,11 @@ COPY --from=build --chown=arnia:arnia /app/build ./build
 COPY --from=build --chown=arnia:arnia /app/node_modules ./node_modules
 COPY --from=build --chown=arnia:arnia /app/package.json ./package.json
 COPY --from=build --chown=arnia:arnia /app/drizzle ./drizzle
-COPY --from=build --chown=arnia:arnia /app/src/lib/server/db/migrate.ts ./src/lib/server/db/migrate.ts
+# src/worker.ts (run via plain tsx, not the bundled `build/`) and everything
+# it imports — src/lib/server/**, using only relative imports (no `$lib/*`,
+# which doesn't resolve outside the Vite build) — see docs/PLAN.md §4.
 COPY --from=build --chown=arnia:arnia /app/src/worker.ts ./src/worker.ts
+COPY --from=build --chown=arnia:arnia /app/src/lib/server ./src/lib/server
 COPY --chown=arnia:arnia --chmod=755 docker/entrypoint.sh ./docker/entrypoint.sh
 
 USER arnia

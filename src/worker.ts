@@ -3,8 +3,12 @@
 // Job handlers (IMAP polling, reminders, digests, cleanup) are registered here
 // as they're built in later phases.
 import { PgBoss } from 'pg-boss';
-import { QUEUE_SEND_EMAIL } from '$lib/server/jobs/queue';
-import { sendEmailHandler } from '$lib/server/jobs/handlers/send-email';
+// Relative imports, not the `$lib/*` alias: this file runs under plain `tsx`
+// in production (docker/entrypoint.sh), where there's no Vite/tsconfig-paths
+// resolution and no guarantee the runtime image even ships those config
+// files — see docs/PLAN.md §4 and CLAUDE.md.
+import { QUEUE_SEND_EMAIL } from './lib/server/jobs/queue';
+import { sendEmailHandler } from './lib/server/jobs/handlers/send-email';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

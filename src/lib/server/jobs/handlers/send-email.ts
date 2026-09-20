@@ -1,7 +1,9 @@
 import type { Job } from 'pg-boss';
-import { getEmailProvider } from '$lib/server/email';
-import { db } from '$lib/server/db';
-import { emailLog } from '$lib/server/db/schema';
+// Relative imports: this module is loaded by src/worker.ts under plain tsx
+// in production, where `$lib/*` doesn't resolve — see docs/PLAN.md §4.
+import { getEmailProvider } from '../../email';
+import { db } from '../../db';
+import { emailLog } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import type { SendEmailJobData } from '../queue';
 

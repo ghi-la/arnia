@@ -113,12 +113,17 @@ Full stack (prod-like): `./scripts/generate-secrets.sh && docker compose up -d -
   `src/lib/server/db/migrate.ts` run via `tsx` inside the runtime Docker image (see
   `docker/entrypoint.sh` and the `worker` service's `command:` in `docker-compose.yml`), so it
   can't be pruned by `pnpm prune --prod`.
-- **`$env/*` doesn't resolve under plain `tsx`** (it's a Vite-only virtual module — throws
-  `ERR_MODULE_NOT_FOUND`), so anything reachable from `src/worker.ts` uses `process.env`
-  directly instead: `db/index.ts`, `email/index.ts`, `jobs/queue.ts`. `$lib/*` aliases DO
-  resolve fine under `tsx` (via tsconfig paths) — it's specifically `$env/*` that doesn't. If
-  you add a new module the worker imports (transitively or not), check it doesn't pull in
-  `$env/*`.
+- **Nothing reachable from `src/worker.ts` may use `$env/*` or `$lib/*`.** `$env/*` is a
+  Vite-only virtual module and never resolves under plain `tsx` (`ERR_MODULE_NOT_FOUND`), so
+  `db/index.ts`/`email/index.ts`/`jobs/queue.ts` use `process.env` directly. `$lib/*` resolves
+  fine under `tsx` in a full checkout (tsconfig paths) but **not** in the shipped runtime
+  image, which has no tsconfig at all — this crash-looped the `worker` container in
+  production until it was caught (`worker.ts`, `jobs/queue.ts`, `jobs/handlers/send-email.ts`
+  now use relative imports instead; see `docs/PLAN.md` §4). The Dockerfile also only copies
+  `src/lib/server/**` into the runtime image (not the rest of `src/`), so a new worker-reachable
+  module must live under there. If you add anything the worker imports, even transitively:
+  use relative imports, no `$env`/`$lib`, and confirm it actually starts with
+  `docker compose up -d db app worker` — a green build does **not** prove the container runs.
 - **Multi-table writes run in DB transactions**, and domain mutations should append to the
   `activity_event` outbox table rather than writing directly to audit/notification tables —
   that's what feeds both (the outbox exists; nothing reads it yet — the audit log viewer and
