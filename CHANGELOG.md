@@ -58,8 +58,36 @@ versioning releases yet (pre-1.0, see `docs/PLAN.md`).
   (`e2e/global-setup.ts`, run once and reused via `storageState` — see `CLAUDE.md`) and the
   login flow.
 
+### Added — Phase 3: Inventory (in progress)
+
+- Data model: `item` (consumables & equipment, with equipment-only tracking/condition/value
+  fields), hierarchical `location` and `inventory_category` (self-referencing), and an
+  append-only `stock_movement` ledger that is the single source of truth for `item.current_qty`.
+- `recordMovement()`: the only path that changes stock or cost, run inside a transaction with a
+  row lock. Six movement types (purchase, consumption, checkout, return, adjustment, disposal);
+  `adjustment` is the only bidirectional one (`direction: 'increase' | 'decrease'`), used for
+  stock-count corrections either way. Consumable purchases update a weighted-average cost;
+  crossing the low-stock threshold records an `activity_event` for future notifications.
+  `InsufficientStockError` blocks any movement that would take stock negative.
+  `/inventory/movements/new` is the manual entry UI.
+- Items/categories/locations CRUD UI (`/inventory`, `/inventory/items/*`,
+  `/inventory/locations`, `/inventory/categories`): search/filter by category, location and
+  low-stock, archive/unarchive instead of delete for items.
+- `/inventory/scan`: camera barcode/QR scanning (`@zxing/browser`) against the item catalog,
+  with a manual-search fallback when the camera is denied or unavailable.
+- `/inventory/count`: a mobile-optimized physical-count flow — search or scan an item, enter the
+  counted quantity, and it records the adjustment (or nothing, if unchanged) with a running
+  per-session summary.
+- Attachments: a polymorphic `attachment` table, magic-byte file-type detection (not
+  client-reported MIME), thumbnail generation, and a client-side `createImageBitmap`+canvas
+  image compressor ahead of upload.
+
 ### Fixed
 
+- On mobile, a lone right-aligned form submit button could end up directly under the fixed
+  quick-action button (present on every in-app page), intercepting the tap. Affected every such
+  button across the app (`settings/users`, `settings/roles`, and every new Phase 3 form) —
+  fixed by centering it on mobile and right-aligning only from `sm:` up.
 - `backup` service could run its first `pg_dump` before Postgres finished starting up
   (`depends_on: [db]` with no health condition), logging a harmless but noisy connection-refused
   error on a cold `docker compose up`. Now waits on `db`'s healthcheck like the other services.

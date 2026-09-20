@@ -58,8 +58,8 @@
 						<input type="hidden" name="roleIds" value={id} />
 					{/each}
 				</div>
-				<div class="flex justify-end">
-					<Button type="submit">{m.users_invite_send()}</Button>
+				<div class="flex justify-center sm:justify-end">
+					<Button type="submit" class="w-full sm:w-auto">{m.users_invite_send()}</Button>
 				</div>
 			</form>
 
@@ -164,7 +164,7 @@
 									</label>
 								{/each}
 							</div>
-							<div class="flex justify-end">
+							<div class="flex justify-center sm:justify-end">
 								<Button type="submit" size="sm">{m.common_save()}</Button>
 							</div>
 						</form>

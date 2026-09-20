@@ -101,7 +101,7 @@
 									</div>
 								</div>
 							{/each}
-							<div class="flex justify-end">
+							<div class="flex justify-center sm:justify-end">
 								<Button type="submit" size="sm">{m.common_save()}</Button>
 							</div>
 						</form>

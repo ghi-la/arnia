@@ -253,3 +253,28 @@ package '$lib'`) once `src/worker.ts` grew real imports in Phase 2. Two compound
     The `docker-build` CI job now brings the stack up for real (`db`, `app`, `worker`) after
     building and polls `docker compose ps` until `app` reports healthy or any service starts
     restarting/exits, failing the job (with logs) either way — see `.github/workflows/ci.yml`.
+- **Phase 3 decisions:**
+  - `stock_movement.type: 'adjustment'` is the only bidirectional movement type — it corrects
+    stock either up or down (found more/less than expected during a count or spot-check), unlike
+    every other type which has a fixed sign. `recordMovement`/`signedDelta` take an optional
+    `direction: 'increase' | 'decrease'` (default `'increase'`) used only for this type; the
+    manual movement form exposes it as a select shown only when `type === 'adjustment'`. The
+    inventory-count flow (`/inventory/count`) always passes an explicit direction, computed from
+    `countedQty - currentQty`.
+  - `/inventory/scan` and `/inventory/count` both load the full non-archived item list once
+    (id/name/sku/barcode/unit/qty) and do lookup/filtering client-side, rather than adding a
+    dedicated search endpoint — the same pattern already used by `/inventory/movements/new`.
+    Fine at the expected scale of a non-profit's inventory; revisit with a real search endpoint
+    if item counts grow large enough to matter.
+  - `@zxing/browser`'s `BrowserMultiFormatReader` is imported dynamically inside `onMount`, not
+    at module scope, so the scan page never touches camera/`MediaDevices` APIs during SSR.
+    Camera permission denial (or no camera) falls back to the always-visible manual search
+    section rather than blocking the page.
+  - **Found via the new inventory e2e specs, not by inspection:** on mobile viewports, a
+    right-aligned (`justify-end`) lone submit button at the end of a form can end up directly
+    under the fixed quick-action FAB (`bottom-right`, present on every `(app)`-layout page),
+    intercepting the tap/click. This was already latent in Phase 2's settings pages
+    (`settings/users`, `settings/roles`) — it just had no test exercising a mobile submit at that
+    scroll position until now. Fixed everywhere by centering the button (full-width) on mobile
+    and right-aligning only from `sm:` up: `justify-center sm:justify-end` on the wrapper, plus
+    `w-full sm:w-auto` on the button. `setup/*` pages are unaffected (their layout has no FAB).
