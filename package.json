@@ -59,7 +59,7 @@
 		"@lucide/svelte": "1.47.0",
 		"@zxing/browser": "0.2.1",
 		"better-auth": "1.7.5",
-		"bits-ui": "2.19.2",
+		"bits-ui": "2.21.0",
 		"clsx": "2.1.1",
 		"formsnap": "2.0.1",
 		"imapflow": "2.0.5",
