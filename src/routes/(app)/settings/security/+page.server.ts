@@ -1,21 +1,17 @@
 import { fail } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { eq } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import { requireSession } from '$lib/server/auth/require-permission';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = requireSession(locals.session);
-	const [row] = await db
-		.select({ twoFactorEnabled: user.twoFactorEnabled })
-		.from(user)
-		.where(eq(user.id, session.user.id))
-		.limit(1);
+	const row = await collections
+		.user()
+		.findOne({ _id: session.user.id }, { projection: { twoFactorEnabled: 1 } });
 
 	return { twoFactorEnabled: !!row?.twoFactorEnabled };
 };
@@ -24,7 +20,8 @@ const passwordSchema = z.object({ password: z.string().min(1) });
 const codeSchema = z.object({ code: z.string().trim().min(1) });
 
 export const actions: Actions = {
-	enable: async ({ request }) => {
+	enable: async ({ request, locals }) => {
+		requireSession(locals.session);
 		const formData = await request.formData();
 		const parsed = passwordSchema.safeParse({ password: formData.get('password') });
 		if (!parsed.success) {
@@ -56,7 +53,8 @@ export const actions: Actions = {
 		}
 	},
 
-	verify: async ({ request }) => {
+	verify: async ({ request, locals }) => {
+		requireSession(locals.session);
 		const formData = await request.formData();
 		const parsed = codeSchema.safeParse({ code: formData.get('code') });
 		if (!parsed.success) {
@@ -79,7 +77,8 @@ export const actions: Actions = {
 		return { step: 'enabled' as const };
 	},
 
-	disable: async ({ request }) => {
+	disable: async ({ request, locals }) => {
+		requireSession(locals.session);
 		const formData = await request.formData();
 		const parsed = passwordSchema.safeParse({ password: formData.get('password') });
 		if (!parsed.success) {

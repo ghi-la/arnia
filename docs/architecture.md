@@ -3,32 +3,32 @@
 See `docs/PLAN.md` for the full execution plan and pinned dependency versions; this document
 covers how the pieces fit together at runtime.
 
-## Processes
+## Runtime
 
-Arnia runs as two Node.js processes sharing one codebase and Docker image:
+Arnia is a single SvelteKit app deployed on **Vercel** (`@sveltejs/adapter-vercel`, Node.js
+serverless functions). It's stateless: every request may run in a fresh function instance.
+Its state lives in managed services:
 
-- **`app`** — the SvelteKit server (`build/index.js`, `@sveltejs/adapter-node`). Handles HTTP
-  requests: page rendering, form actions, API endpoints, auth. Stateless — safe to scale
-  horizontally behind Caddy.
-- **`worker`** (`src/worker.ts`) — a pg-boss worker process. Handles anything that shouldn't
-  block a request: sending email, polling IMAP, generating PDFs, reminders, digests, cleanup
-  jobs. pg-boss uses Postgres itself as the queue, so no Redis or separate broker is needed.
+- **MongoDB Atlas**: all data (`src/lib/server/db`). One `MongoClient` is created lazily and
+  cached on `globalThis`, so warm function instances reuse their connection pool.
+- **Cloudflare R2**: item photo bytes (`src/lib/server/storage`).
+- **Resend / SMTP**: transactional email, sent directly during the request (there's no
+  background worker on Vercel; schedules will use Vercel Cron when they're needed).
 
-Both processes run the same migration runner (`src/lib/server/db/migrate.ts`) on startup,
-guarded by a Postgres advisory lock, so it's safe for them (or multiple replicas of `app`) to
-start concurrently — only one actually runs the migration, the rest wait and then proceed.
-
-Caddy sits in front of `app` as a reverse proxy and handles TLS termination and certificate
-renewal automatically (see the root `Caddyfile`).
+There are no migrations. Collections are created by the first write, and indexes are ensured
+once per cold start (`ensureIndexes` in `db/index.ts`). That runs in the background, so code
+must not rely on a unique index alone for correctness (see the role-name check in
+`settings/roles`).
 
 ## Request flow
 
 ```
-Browser → Caddy (TLS) → app (SvelteKit)
-                            ├─ hooks.server.ts: i18n (Paraglide) → security headers
-                            ├─ +page.server.ts / +server.ts → src/lib/server/services/*
-                            │                                    └─ src/lib/server/db (Drizzle)
-                            └─ enqueue background jobs → pg-boss (Postgres) → worker
+Browser → Vercel (TLS, function) → SvelteKit
+             ├─ hooks.server.ts: i18n (Paraglide) → session (Better Auth on Mongo) → security headers
+             ├─ +page.server.ts / +server.ts → src/lib/server/services/*
+             │                                    ├─ src/lib/server/db (MongoDB driver)
+             │                                    └─ src/lib/server/storage (R2, S3 API)
+             └─ /attachments/[id] → permission check → stream from R2
 ```
 
 Business logic lives in `src/lib/server/services/`, not in routes. Routes are thin: they parse
@@ -39,9 +39,10 @@ UI conditionals.
 
 ## Data flow for a typical mutation
 
-Multi-table writes run inside a single Drizzle/Postgres transaction. Where a mutation should be
-audited or trigger notifications, the service appends a row to the `activity_event` outbox
-table (added in Phase 2) in the same transaction — the audit log and the notification system
+Multi-document writes run inside a single MongoDB transaction (`withTransaction` in
+`db/index.ts`; Atlas clusters are replica sets, so transactions are always available). Where a
+mutation should be audited or trigger notifications, the service appends a document to the
+`activity_event` outbox collection in the same transaction — the audit log and the notification system
 both read from that outbox, rather than each mutation having to know about both concerns
 directly.
 
@@ -59,10 +60,11 @@ mechanics that make that work under a strict Content-Security-Policy.
 
 ## Storage
 
-Uploaded files (receipts, item photos, logos) live on a local Docker volume (`uploads`),
-organized by year/entity, and are only ever served through an authorized SvelteKit route — never
-directly by Caddy — so permission checks apply to file access the same way they apply to data
-access.
+Uploaded files (receipts, item photos, logos) live in a private Cloudflare R2 bucket
+(`src/lib/server/storage/r2.ts`), keyed `{year}/{entityType}/{id}.{ext}`, and are only ever
+served through an authorized SvelteKit route (`/attachments/[id]`, which streams from R2) —
+never from a public bucket URL — so permission checks apply to file access the same way they
+apply to data access. Setup: `docs/storage-r2.md`.
 
 ## See also
 

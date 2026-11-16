@@ -5,9 +5,24 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { enhance } from '$app/forms';
-	import type { PageData } from './$types';
+	import FieldError from '$lib/components/feedback/field-error.svelte';
+	import { createSubmit } from '$lib/client/submit.svelte';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const create = createSubmit({
+		success: (result) => m.category_created({ name: String(result?.created ?? '') })
+	});
+	const remove = createSubmit({
+		confirm: ({ formElement }) => ({
+			title: m.category_delete_confirm_title({ name: formElement.dataset.name ?? '' }),
+			description: m.category_delete_confirm(),
+			confirmLabel: m.common_delete(),
+			destructive: true
+		}),
+		success: () => m.category_deleted()
+	});
 </script>
 
 <svelte:head>
@@ -22,10 +37,22 @@
 			<CardTitle>{m.categories_new()}</CardTitle>
 		</CardHeader>
 		<CardContent>
-			<form method="POST" action="?/create" use:enhance class="flex flex-col gap-3">
+			<form
+				method="POST"
+				action="?/create"
+				use:enhance={create.enhance}
+				class="flex flex-col gap-3"
+			>
 				<div class="flex flex-col gap-1.5">
 					<Label for="name">{m.category_name()}</Label>
-					<Input id="name" name="name" required />
+					<Input
+						id="name"
+						name="name"
+						required
+						aria-invalid={form?.errors?.name ? true : undefined}
+						aria-describedby={form?.errors?.name ? 'name-error' : undefined}
+					/>
+					<FieldError id="name-error" error={form?.errors?.name ? m.field_name_error() : null} />
 				</div>
 				<div class="flex flex-col gap-1.5">
 					<Label for="parentId">{m.category_parent()}</Label>
@@ -41,7 +68,9 @@
 					</select>
 				</div>
 				<div class="flex justify-center sm:justify-end">
-					<Button type="submit" class="w-full sm:w-auto">{m.categories_new()}</Button>
+					<Button type="submit" class="w-full sm:w-auto" loading={create.pending}
+						>{m.categories_new()}</Button
+					>
 				</div>
 			</form>
 		</CardContent>
@@ -49,21 +78,26 @@
 
 	<Card>
 		<CardContent class="divide-border divide-y p-0">
+			{#if data.tree.length === 0}
+				<p class="text-muted-foreground p-6 text-center text-sm">{m.categories_empty()}</p>
+			{/if}
 			{#each data.tree as { node, depth } (node.id)}
 				<div
 					class="flex items-center justify-between gap-3 p-3.5"
 					style="padding-left: {1 + depth * 1.25}rem"
 				>
 					<p class="font-medium">{node.name}</p>
-					<form
-						method="POST"
-						action="?/delete"
-						use:enhance={({ cancel }) => {
-							if (!confirm(m.category_delete_confirm())) cancel();
-						}}
-					>
+					<form method="POST" action="?/delete" data-name={node.name} use:enhance={remove.enhance}>
 						<input type="hidden" name="id" value={node.id} />
-						<Button type="submit" variant="ghost" size="sm">{m.common_delete()}</Button>
+						<Button
+							type="submit"
+							variant="ghost"
+							size="sm"
+							loading={remove.isPending(node.id)}
+							aria-label={m.common_delete_named({ name: node.name })}
+						>
+							{m.common_delete()}
+						</Button>
 					</form>
 				</div>
 			{/each}

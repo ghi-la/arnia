@@ -1,10 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { APIError } from 'better-auth';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import {
 	getPendingInvitation,
 	redeemInvitationForExistingUser
@@ -41,23 +39,22 @@ export const actions: Actions = {
 				return fail(400, { error: 'weak_password' as const });
 			}
 
-			const [existingUser] = await db
-				.select({ id: user.id })
-				.from(user)
-				.where(eq(user.email, pending.email))
-				.limit(1);
+			const existingUser = await collections
+				.user()
+				.findOne({ email: pending.email }, { projection: { _id: 1 } });
 			if (!existingUser) {
 				return fail(400, { error: 'invalid' as const });
 			}
 
 			await redeemInvitationForExistingUser({
 				invitationId: pending.id,
-				userId: existingUser.id,
+				userId: existingUser._id,
 				roleIds: pending.roleIds,
 				newPassword: parsed.data.password
 			});
 
-			redirect(303, '/login');
+			// The login page shows a "password set — sign in" notice for this.
+			redirect(303, '/login?invited=1');
 		} else {
 			const parsed = newUserSchema.safeParse({
 				name: formData.get('name'),

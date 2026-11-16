@@ -1,8 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { organization } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import { getOrganization, getUserCount } from '$lib/server/services/setup';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -52,7 +50,6 @@ export const actions: Actions = {
 		const { iban, ...rest } = parsed.data;
 		const isQrIban = isQrIbanNumber(iban);
 
-		const existing = await getOrganization();
 		const values = {
 			...rest,
 			phone: rest.phone || null,
@@ -62,11 +59,26 @@ export const actions: Actions = {
 			enabledLocales: [rest.defaultLocale]
 		};
 
-		if (existing) {
-			await db.update(organization).set(values).where(eq(organization.id, 1));
-		} else {
-			await db.insert(organization).values({ id: 1, ...values });
-		}
+		const now = new Date();
+		await collections.organization().updateOne(
+			{ _id: 'default' },
+			{
+				$set: { ...values, updatedAt: now },
+				// Defaults for fields this step doesn't ask about (first save only).
+				$setOnInsert: {
+					logoPath: null,
+					terminology: {},
+					vatEnabled: false,
+					vatNumber: null,
+					fiscalYearStartMonth: 1,
+					invoiceNumberPattern: '{year}-{seq:04}',
+					invoiceDefaultDueDays: 30,
+					setupCompletedAt: null,
+					createdAt: now
+				}
+			},
+			{ upsert: true }
+		);
 
 		redirect(303, '/setup/email');
 	}

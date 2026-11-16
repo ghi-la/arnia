@@ -1,6 +1,6 @@
 # Arnia 🐝
 
-**Arnia** è un gestionale open-source e self-hosted per associazioni non-profit e realtà simili:
+**Arnia** è un gestionale open-source per associazioni non-profit e realtà simili:
 magazzino, eventi/attività e finanze — comprese le fatture con QR-bill svizzero — in un unico
 strumento pensato prima di tutto per il telefono.
 
@@ -40,14 +40,16 @@ giurisdizione. Arnia non dichiara la conformità a nessuna legge o normativa spe
   bozza di spesa.
 - **PWA installabile** — funziona offline per gli ultimi dati consultati; le nuove spese e i
   movimenti di magazzino creati offline si sincronizzano al ritorno della connessione.
-- **Pensata per il self-hosting** — nessun CDN, font o servizio di analisi esterno. L'unico
-  servizio esterno usato di default è [Resend](https://resend.com) per l'email transazionale,
-  sostituibile con un proprio server SMTP.
+- **Dati sotto il tuo controllo** — nessun CDN, font o servizio di analisi esterno. I dati
+  stanno nel tuo cluster MongoDB Atlas e le foto nel tuo bucket privato Cloudflare R2; le email
+  passano da [Resend](https://resend.com) o da un tuo server SMTP.
 
 ## Avvio rapido
 
-Vedi [`README.md`](README.md) (in inglese) per le istruzioni complete di installazione,
-configurazione email, backup/restore e installazione della PWA.
+Si pubblica su Vercel con un database MongoDB Atlas: vedi
+[`docs/deploy-vercel.md`](docs/deploy-vercel.md) e, per le foto, [`docs/storage-r2.md`](docs/storage-r2.md)
+(in inglese). Il [`README.md`](README.md) copre sviluppo locale, email, backup e installazione
+della PWA.
 
 ## Licenza
 

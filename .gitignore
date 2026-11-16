@@ -7,13 +7,10 @@ build/
 dist/
 .output/
 .vite/
+.vercel/
 
 # testing
 coverage/
-playwright-report/
-test-results/
-blob-report/
-e2e/.auth/
 
 # environment
 .env
@@ -34,16 +31,10 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# runtime data (local/dev only — production uses named Docker volumes)
-uploads/
-backups/
-data/
 *.sqlite
 *.pem
 *.key
 vapid*.json
-caddy_data/
-caddy_config/
 
 # tooling caches
 .cache/

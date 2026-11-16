@@ -1,21 +1,12 @@
 import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
-import { and, eq, gt, isNull, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import {
-	account,
-	invitation,
-	organization,
-	session,
-	twoFactor as twoFactorTable,
-	user as userTable,
-	userRole,
-	verification
-} from '$lib/server/db/schema';
-import { enqueueEmail } from '$lib/server/jobs/queue';
+import { building } from '$app/environment';
+import { client, collections, db, withTransaction } from '$lib/server/db';
+import { userRoleId } from '$lib/server/db/types';
+import { sendEmail } from '$lib/server/email/send';
 import {
 	changeEmailConfirmationEmail,
 	resetPasswordEmail,
@@ -23,48 +14,62 @@ import {
 } from '$lib/server/email/templates/auth-emails';
 
 async function getOrgName(): Promise<string> {
-	const [org] = await db.select({ name: organization.name }).from(organization).limit(1);
+	const org = await collections.organization().findOne({}, { projection: { name: 1 } });
 	return org?.name ?? 'Arnia';
+}
+
+/** A pending (not accepted, not expired) invitation for this email, oldest first. */
+function findPendingInvitation(email: string) {
+	return collections
+		.invitation()
+		.findOne(
+			{ email, acceptedAt: null, expiresAt: { $gt: new Date() } },
+			{ sort: { createdAt: 1 } }
+		);
 }
 
 /** Redeems the invitation matching this email (if any): assigns its roles and marks it accepted. */
 async function redeemInvitationFor(userId: string, email: string) {
-	const [pending] = await db
-		.select()
-		.from(invitation)
-		.where(
-			and(
-				eq(invitation.email, email),
-				isNull(invitation.acceptedAt),
-				gt(invitation.expiresAt, new Date())
-			)
-		)
-		.orderBy(invitation.createdAt)
-		.limit(1);
-
+	const pending = await findPendingInvitation(email);
 	if (!pending) return;
 
-	await db.transaction(async (tx) => {
+	await withTransaction(async (session) => {
 		if (pending.roleIds.length > 0) {
-			await tx
-				.insert(userRole)
-				.values(pending.roleIds.map((roleId) => ({ userId, roleId })))
-				.onConflictDoNothing();
+			// Composite `_id` + upsert = "insert if missing" (no duplicate assignments).
+			await collections.userRole().bulkWrite(
+				pending.roleIds.map((roleId) => ({
+					updateOne: {
+						filter: { _id: userRoleId(userId, roleId) },
+						update: { $setOnInsert: { userId, roleId } },
+						upsert: true
+					}
+				})),
+				{ session }
+			);
 		}
-		await tx
-			.update(invitation)
-			.set({ acceptedAt: new Date() })
-			.where(eq(invitation.id, pending.id));
+		await collections
+			.invitation()
+			.updateOne({ _id: pending._id }, { $set: { acceptedAt: new Date() } }, { session });
 	});
 }
 
 export const auth = betterAuth({
-	secret: process.env.BETTER_AUTH_SECRET,
+	// `vite build` imports every server module once (route analysis) and Better
+	// Auth refuses to construct without a secret — so builds get a throwaway
+	// placeholder and need no secrets at all. At runtime it must be the real one.
+	secret:
+		process.env.BETTER_AUTH_SECRET ||
+		(building ? 'build-time-placeholder-never-used-at-runtime-000000' : undefined),
 	baseURL: process.env.BETTER_AUTH_URL,
-	database: drizzleAdapter(db, {
-		provider: 'pg',
-		schema: { user: userTable, session, account, verification, twoFactor: twoFactorTable }
-	}),
+	// `client` enables Better Auth's own transactions. Both are lazy proxies
+	// (see db/index.ts), so nothing connects at import/build time.
+	database: mongodbAdapter(db, { client }),
+	advanced: {
+		database: {
+			// String UUIDs, like every other collection — not ObjectIds.
+			generateId: () => crypto.randomUUID()
+		}
+	},
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,
@@ -74,7 +79,7 @@ export const auth = betterAuth({
 			const orgName = await getOrgName();
 			const locale = (user as { locale?: string }).locale as Locale | undefined;
 			const email = resetPasswordEmail({ locale: locale ?? 'it', orgName, url });
-			await enqueueEmail({ ...email, to: user.email, template: 'reset-password' });
+			await sendEmail({ ...email, to: user.email, template: 'reset-password' });
 		}
 	},
 	emailVerification: {
@@ -87,7 +92,7 @@ export const auth = betterAuth({
 				const orgName = await getOrgName();
 				const locale = (user as { locale?: string }).locale as Locale | undefined;
 				const email = changeEmailConfirmationEmail({ locale: locale ?? 'it', orgName, url });
-				await enqueueEmail({ ...email, to: newEmail, template: 'change-email' });
+				await sendEmail({ ...email, to: newEmail, template: 'change-email' });
 			}
 		},
 		additionalFields: {
@@ -110,20 +115,10 @@ export const auth = betterAuth({
 		validateUserInfo: async ({ user, source }) => {
 			if (source.method !== 'email-password' || source.action !== 'create-user') return;
 
-			const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(userTable);
-			if (Number(count) === 0) return;
+			const anyUser = await collections.user().findOne({}, { projection: { _id: 1 } });
+			if (!anyUser) return;
 
-			const [pending] = await db
-				.select({ id: invitation.id })
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.email, user.email as string),
-						isNull(invitation.acceptedAt),
-						gt(invitation.expiresAt, new Date())
-					)
-				)
-				.limit(1);
+			const pending = await findPendingInvitation(user.email as string);
 
 			if (!pending) {
 				return {

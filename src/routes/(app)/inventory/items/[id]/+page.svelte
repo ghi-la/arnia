@@ -5,15 +5,27 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
+	import ItemPhotos from '$lib/components/inventory/item-photos.svelte';
+	import { createSubmit } from '$lib/client/submit.svelte';
+	import { formatDate, formatMoney } from '$lib/format';
+	import { movementReasonLabel } from '$lib/inventory-labels';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	const low = $derived(data.item.currentQty <= data.item.minThreshold);
 
-	function formatMoney(minor: number, currency: string): string {
-		return new Intl.NumberFormat('de-CH', { style: 'currency', currency }).format(minor / 100);
-	}
+	const archive = createSubmit({
+		confirm: () =>
+			data.item.archivedAt
+				? null
+				: {
+						title: m.item_archive_confirm_title({ name: data.item.name }),
+						description: m.item_archive_confirm_body(),
+						confirmLabel: m.item_archive()
+					},
+		success: (result) => (result?.archived ? m.item_archived_toast() : m.item_unarchived_toast())
+	});
 
 	const movementTypeLabels: Record<string, () => string> = {
 		purchase: m.movement_type_purchase,
@@ -89,11 +101,15 @@
 				variant="outline"
 				size="sm"
 			>
-				{m.common_save()}
+				{m.common_edit()}
 			</Button>
-			<form method="POST" action={data.item.archivedAt ? '?/unarchive' : '?/archive'} use:enhance>
-				<Button type="submit" variant="ghost" size="sm">
-					{data.item.archivedAt ? m.users_action_activate() : m.item_archive()}
+			<form
+				method="POST"
+				action={data.item.archivedAt ? '?/unarchive' : '?/archive'}
+				use:enhance={archive.enhance}
+			>
+				<Button type="submit" variant="ghost" size="sm" loading={archive.pending}>
+					{data.item.archivedAt ? m.item_unarchive() : m.item_archive()}
 				</Button>
 			</form>
 		{/if}
@@ -101,6 +117,21 @@
 
 	{#if data.item.description}
 		<p class="text-muted-foreground text-sm">{data.item.description}</p>
+	{/if}
+
+	{#if data.photos.length > 0}
+		<Card>
+			<CardContent class="pt-4">
+				<!-- Read-only here; photos are added/removed from the create and edit forms. -->
+				<ItemPhotos
+					itemId={data.item.id}
+					photos={data.photos}
+					canEdit={false}
+					maxUploadMb={data.maxUploadMb}
+					maxPhotos={data.maxPhotos}
+				/>
+			</CardContent>
+		</Card>
 	{/if}
 
 	<Card>
@@ -117,9 +148,9 @@
 							<div>
 								<p class="font-medium">{movementTypeLabels[mv.type]?.() ?? mv.type}</p>
 								<p class="text-muted-foreground text-xs">
-									{new Date(mv.createdAt).toLocaleDateString('de-CH')}
+									{formatDate(mv.createdAt)}
 									{#if mv.createdByName}· {mv.createdByName}{/if}
-									{#if mv.reason}· {mv.reason}{/if}
+									{#if mv.reason}· {movementReasonLabel(mv.reason)}{/if}
 								</p>
 							</div>
 							<span class="font-medium {mv.qty < 0 ? 'text-destructive' : 'text-success'}">

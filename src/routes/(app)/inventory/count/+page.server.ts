@@ -1,27 +1,21 @@
 import { fail } from '@sveltejs/kit';
-import { asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { item } from '$lib/server/db/schema';
 import { requirePermission } from '$lib/server/auth/require-permission';
-import { recordMovement } from '$lib/server/services/inventory';
+import { getItem, listItems, recordMovement } from '$lib/server/services/inventory';
+import { COUNT_REASON } from '$lib/inventory-labels';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requirePermission(locals.session, 'inventory.adjust_stock');
 
-	const items = await db
-		.select({
-			id: item.id,
-			name: item.name,
-			sku: item.sku,
-			barcode: item.barcode,
-			unit: item.unit,
-			currentQty: item.currentQty
-		})
-		.from(item)
-		.where(isNull(item.archivedAt))
-		.orderBy(asc(item.name));
+	const items = (await listItems()).map((it) => ({
+		id: it.id,
+		name: it.name,
+		sku: it.sku,
+		barcode: it.barcode,
+		unit: it.unit,
+		currentQty: it.currentQty
+	}));
 
 	return { items };
 };
@@ -41,10 +35,7 @@ export const actions: Actions = {
 			return fail(400, { errors: z.flattenError(parsed.error).fieldErrors });
 		}
 
-		const [current] = await db
-			.select({ currentQty: item.currentQty, name: item.name })
-			.from(item)
-			.where(eq(item.id, parsed.data.itemId));
+		const current = await getItem(parsed.data.itemId);
 
 		if (!current) {
 			return fail(404, { notFound: true });
@@ -60,7 +51,7 @@ export const actions: Actions = {
 			type: 'adjustment',
 			qty: Math.abs(delta),
 			direction: delta > 0 ? 'increase' : 'decrease',
-			reason: 'Inventory count',
+			reason: COUNT_REASON,
 			createdBy: session.user.id
 		});
 

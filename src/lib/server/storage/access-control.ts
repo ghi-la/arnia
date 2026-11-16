@@ -1,5 +1,5 @@
 import type { SessionContext } from '../auth/session';
-import type { Attachment } from '../db/schema';
+import type { Attachment } from '../db/types';
 
 /**
  * Attachments are polymorphic, so authorizing access to one means asking

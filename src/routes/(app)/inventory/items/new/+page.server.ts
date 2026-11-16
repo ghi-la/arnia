@@ -1,27 +1,32 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { asc } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { inventoryCategory, item, location } from '$lib/server/db/schema';
 import { requirePermission } from '$lib/server/auth/require-permission';
 import { itemSchema } from '$lib/server/services/item-schema';
+import { createItem } from '$lib/server/services/inventory';
+import { listCategories, listLocations } from '$lib/server/services/inventory-taxonomy';
+import { MAX_PHOTOS_PER_ITEM, maxUploadMb } from '$lib/server/services/item-photos';
 import { resolve } from '$app/paths';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	requirePermission(locals.session, 'inventory.edit');
 
-	const [categories, locations] = await Promise.all([
-		db.select().from(inventoryCategory).orderBy(asc(inventoryCategory.name)),
-		db.select().from(location).orderBy(asc(location.name))
-	]);
+	const [categories, locations] = await Promise.all([listCategories(), listLocations()]);
 
-	return { categories, locations };
+	// `?barcode=` comes from the scanner's "create item with this code".
+	const barcode = url.searchParams.get('barcode')?.trim().slice(0, 100);
+	return {
+		categories,
+		locations,
+		prefill: barcode ? { barcode } : undefined,
+		maxUploadMb: maxUploadMb(),
+		maxPhotos: MAX_PHOTOS_PER_ITEM
+	};
 };
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		requirePermission(locals.session, 'inventory.edit');
+		const session = requirePermission(locals.session, 'inventory.edit');
 
 		const formData = await request.formData();
 		const parsed = itemSchema.safeParse(Object.fromEntries(formData));
@@ -33,9 +38,8 @@ export const actions: Actions = {
 			});
 		}
 
-		const { purchaseValue: _pv, usageCost: _uc, ...values } = parsed.data;
-		const [created] = await db.insert(item).values(values).returning({ id: item.id });
+		const id = await createItem(parsed.data, session.user.id);
 
-		redirect(303, resolve('/(app)/inventory/items/[id]', { id: created.id }));
+		redirect(303, resolve('/(app)/inventory/items/[id]', { id }));
 	}
 };

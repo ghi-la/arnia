@@ -1,10 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { organization } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import { getOrganization } from '$lib/server/services/setup';
 import { getEmailProvider } from '$lib/server/email';
-import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 const localesSchema = z.object({
@@ -51,10 +49,12 @@ export const actions: Actions = {
 			return fail(400, { errors: z.flattenError(parsed.error).fieldErrors });
 		}
 
-		await db
-			.update(organization)
-			.set({ enabledLocales: parsed.data.locales })
-			.where(eq(organization.id, 1));
+		await collections
+			.organization()
+			.updateOne(
+				{ _id: 'default' },
+				{ $set: { enabledLocales: parsed.data.locales, updatedAt: new Date() } }
+			);
 
 		redirect(303, '/setup/finish');
 	}

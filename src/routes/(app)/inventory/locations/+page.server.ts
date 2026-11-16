@@ -1,21 +1,17 @@
 import { fail } from '@sveltejs/kit';
-import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { location } from '$lib/server/db/schema';
 import { requirePermission } from '$lib/server/auth/require-permission';
-import { getLocationTree } from '$lib/server/services/inventory-taxonomy';
+import {
+	createLocation,
+	deleteLocation,
+	getLocationTree
+} from '$lib/server/services/inventory-taxonomy';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requirePermission(locals.session, 'inventory.edit');
-
-	const [tree, flat] = await Promise.all([
-		getLocationTree(),
-		db.select().from(location).orderBy(asc(location.name))
-	]);
-
-	return { tree, flat };
+	const tree = await getLocationTree();
+	return { tree, flat: tree.map((t) => t.node) };
 };
 
 const createSchema = z.object({
@@ -37,13 +33,14 @@ export const actions: Actions = {
 			return fail(400, { errors: z.flattenError(parsed.error).fieldErrors });
 		}
 
-		await db.insert(location).values(parsed.data);
+		await createLocation(parsed.data);
+		return { created: parsed.data.name };
 	},
 
 	delete: async ({ request, locals }) => {
 		requirePermission(locals.session, 'inventory.edit');
 		const formData = await request.formData();
-		const id = String(formData.get('id'));
-		await db.delete(location).where(eq(location.id, id));
+		await deleteLocation(String(formData.get('id')));
+		return { deleted: true };
 	}
 };

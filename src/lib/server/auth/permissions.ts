@@ -1,7 +1,7 @@
 /**
  * Fine-grained permissions, defined in code (Arnia spec §2.3). Roles are
  * named sets of these, created/edited by the admin in the UI — see
- * `src/lib/server/db/schema/rbac.ts` (role/role_permission/user_role) and
+ * `src/lib/server/db/types.ts` (`RoleDoc.permissions`, `UserRoleDoc`) and
  * `src/lib/server/auth/require-permission.ts`.
  */
 export const PERMISSIONS = [

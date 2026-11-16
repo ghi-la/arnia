@@ -3,5 +3,4 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@inlang/paraglide-js@2.25.4'
   - '@inlang/sdk@3.0.6'
-  - pg-boss@12.33.0
   - '@lucide/svelte@1.47.0'

@@ -2,18 +2,42 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { Plus, Receipt, PackageSearch, CalendarPlus, ScanLine } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
 
-	const actions = [
-		{ href: resolve('/finance/expenses/new'), label: m.quick_action_new_expense, icon: Receipt },
+	// Only offer what the user may actually do — a tap must never end on a 403.
+	// `permission: null` = not gated yet (the module is still a placeholder).
+	const allActions = [
+		{
+			href: resolve('/finance/expenses/new'),
+			label: m.quick_action_new_expense,
+			icon: Receipt,
+			permission: null
+		},
 		{
 			href: resolve('/inventory/movements/new'),
 			label: m.quick_action_stock_movement,
-			icon: PackageSearch
+			icon: PackageSearch,
+			permission: 'inventory.adjust_stock'
 		},
-		{ href: resolve('/events/new'), label: m.quick_action_new_event, icon: CalendarPlus },
-		{ href: resolve('/inventory/scan'), label: m.quick_action_scan_item, icon: ScanLine }
+		{
+			href: resolve('/events/new'),
+			label: m.quick_action_new_event,
+			icon: CalendarPlus,
+			permission: null
+		},
+		{
+			href: resolve('/inventory/scan'),
+			label: m.quick_action_scan_item,
+			icon: ScanLine,
+			permission: 'inventory.view'
+		}
 	];
+
+	const permissions = $derived(new Set<string>(page.data.permissions ?? []));
+	const actions = $derived(
+		allActions.filter((a) => a.permission === null || permissions.has(a.permission))
+	);
 </script>
 
 <DropdownMenu.Root>

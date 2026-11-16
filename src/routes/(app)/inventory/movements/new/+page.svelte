@@ -5,6 +5,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { enhance } from '$app/forms';
+	import FieldError from '$lib/components/feedback/field-error.svelte';
+	import { createSubmit } from '$lib/client/submit.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -26,6 +28,17 @@
 	);
 
 	const errors = $derived(form?.errors ?? {});
+
+	const submit = createSubmit({
+		success: () => m.movement_success(),
+		// Specific reasons (stock, reason, item) are shown inline below.
+		error: (data) =>
+			data?.insufficientStockAvailable !== undefined
+				? m.movement_insufficient_stock({ available: Number(data.insufficientStockAvailable) })
+				: data?.notFound
+					? m.item_not_found()
+					: m.common_error_check_fields()
+	});
 </script>
 
 <svelte:head>
@@ -37,11 +50,12 @@
 
 	<Card>
 		<CardContent class="pt-4">
-			<form method="POST" use:enhance class="flex flex-col gap-4">
+			<form method="POST" use:enhance={submit.enhance} class="flex flex-col gap-4">
 				<div class="flex flex-col gap-1.5">
 					<Label for="itemSearch">{m.movement_item()}</Label>
 					<Input
 						id="itemSearch"
+						type="search"
 						placeholder={m.movement_item_search_placeholder()}
 						bind:value={search}
 					/>
@@ -50,16 +64,24 @@
 						name="itemId"
 						bind:value={itemId}
 						required
+						aria-label={m.movement_item()}
+						aria-invalid={errors.itemId ? true : undefined}
+						aria-describedby={errors.itemId ? 'itemId-error' : undefined}
 						class="border-input bg-card h-11 rounded-md border px-3 text-base md:text-sm"
 					>
-						<option value="" disabled>{m.item_none()}</option>
+						<option value="" disabled>
+							{filteredItems.length === 0 ? m.search_no_results() : m.movement_item_choose()}
+						</option>
 						{#each filteredItems as it (it.id)}
 							<option value={it.id}
 								>{it.name}{it.sku ? ` (${it.sku})` : ''} — {it.currentQty} {it.unit}</option
 							>
 						{/each}
 					</select>
-					{#if errors.itemId}<p class="text-destructive text-sm">{errors.itemId[0]}</p>{/if}
+					<FieldError
+						id="itemId-error"
+						error={errors.itemId || form?.notFound ? m.movement_item_required() : null}
+					/>
 				</div>
 
 				<div class="flex flex-col gap-1.5">
@@ -89,8 +111,10 @@
 						min="1"
 						required
 						value={form?.values?.qty ?? '1'}
+						aria-invalid={errors.qty ? true : undefined}
+						aria-describedby={errors.qty ? 'qty-error' : undefined}
 					/>
-					{#if errors.qty}<p class="text-destructive text-sm">{errors.qty[0]}</p>{/if}
+					<FieldError id="qty-error" error={errors.qty ? m.movement_qty_error() : null} />
 				</div>
 
 				{#if type === 'purchase'}
@@ -147,20 +171,23 @@
 							required
 							class="border-input bg-card rounded-md border px-3 py-2 text-base md:text-sm"
 							value={form?.values?.reason ?? ''}></textarea>
-						{#if form?.reasonRequired}<p class="text-destructive text-sm">
-								{m.movement_reason_required()}
-							</p>{/if}
+						<FieldError
+							id="reason-error"
+							error={form?.reasonRequired ? m.movement_reason_required() : null}
+						/>
 					</div>
 				{/if}
 
 				{#if form?.insufficientStockAvailable !== undefined}
-					<p class="text-destructive text-sm">
+					<p class="text-destructive text-sm" role="alert">
 						{m.movement_insufficient_stock({ available: form.insufficientStockAvailable })}
 					</p>
 				{/if}
 
 				<div class="flex justify-center sm:justify-end">
-					<Button type="submit" class="w-full sm:w-auto">{m.movement_submit()}</Button>
+					<Button type="submit" class="w-full sm:w-auto" loading={submit.pending}>
+						{m.movement_submit()}
+					</Button>
 				</div>
 			</form>
 		</CardContent>

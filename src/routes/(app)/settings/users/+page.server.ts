@@ -1,8 +1,7 @@
 import { fail } from '@sveltejs/kit';
-import { and, asc, eq, isNull, gt } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { invitation, role, user, userRole } from '$lib/server/db/schema';
+import { collections, withTransaction } from '$lib/server/db';
+import { toEntity, userRoleId } from '$lib/server/db/types';
 import { requirePermission } from '$lib/server/auth/require-permission';
 import { createInvitation } from '$lib/server/services/invitations';
 import { resetUserPasswordByAdmin } from '$lib/server/services/set-password';
@@ -12,14 +11,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	requirePermission(locals.session, 'users.manage');
 
 	const [allUsers, allRoles, assignments, pendingInvitations] = await Promise.all([
-		db.select().from(user).orderBy(asc(user.name)),
-		db.select().from(role).orderBy(asc(role.name)),
-		db.select().from(userRole),
-		db
-			.select()
-			.from(invitation)
-			.where(and(isNull(invitation.acceptedAt), gt(invitation.expiresAt, new Date())))
-			.orderBy(asc(invitation.email))
+		collections.user().find().sort({ name: 1 }).toArray(),
+		collections.role().find().sort({ name: 1 }).toArray(),
+		collections.userRole().find().toArray(),
+		collections
+			.invitation()
+			.find({ acceptedAt: null, expiresAt: { $gt: new Date() } })
+			.sort({ email: 1 })
+			.toArray()
 	]);
 
 	const rolesByUser = new Map<string, string[]>();
@@ -29,14 +28,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		users: allUsers.map((u) => ({
-			id: u.id,
+			id: u._id,
 			name: u.name,
 			email: u.email,
-			isActive: u.isActive,
-			roleIds: rolesByUser.get(u.id) ?? []
+			isActive: u.isActive !== false,
+			roleIds: rolesByUser.get(u._id) ?? []
 		})),
-		roles: allRoles,
-		pendingInvitations
+		roles: allRoles.map(toEntity),
+		// Never send token hashes to the browser.
+		pendingInvitations: pendingInvitations.map((inv) => ({
+			id: inv._id,
+			email: inv.email,
+			roleIds: inv.roleIds
+		}))
 	};
 };
 
@@ -79,7 +83,12 @@ export const actions: Actions = {
 			return fail(400, { toggleError: 'self' as const });
 		}
 
-		await db.update(user).set({ isActive: nextActive }).where(eq(user.id, userId));
+		await collections.user().updateOne({ _id: userId }, { $set: { isActive: nextActive } });
+		if (!nextActive) {
+			// Sign them out everywhere right away, not at their next session refresh.
+			await collections.session().deleteMany({ userId });
+		}
+		return { activated: nextActive };
 	},
 
 	resetPassword: async ({ request, locals }) => {
@@ -97,18 +106,27 @@ export const actions: Actions = {
 		const userId = String(formData.get('userId'));
 		const roleIds = formData.getAll('roleIds').map(String);
 
-		await db.transaction(async (tx) => {
-			await tx.delete(userRole).where(eq(userRole.userId, userId));
+		await withTransaction(async (session) => {
+			await collections.userRole().deleteMany({ userId }, { session });
 			if (roleIds.length > 0) {
-				await tx.insert(userRole).values(roleIds.map((roleId) => ({ userId, roleId })));
+				await collections.userRole().insertMany(
+					[...new Set(roleIds)].map((roleId) => ({
+						_id: userRoleId(userId, roleId),
+						userId,
+						roleId
+					})),
+					{ session }
+				);
 			}
 		});
+		return { rolesUpdated: true };
 	},
 
 	revokeInvite: async ({ request, locals }) => {
 		requirePermission(locals.session, 'users.manage');
 		const formData = await request.formData();
 		const id = String(formData.get('id'));
-		await db.delete(invitation).where(eq(invitation.id, id));
+		await collections.invitation().deleteOne({ _id: id });
+		return { revoked: true };
 	}
 };

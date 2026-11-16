@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { getPrimaryNavItems } from './nav-items';
 	import { cn } from '$lib/utils';
+	import { m } from '$lib/paraglide/messages';
 
 	const items = getPrimaryNavItems();
 
@@ -14,7 +15,7 @@
 
 <nav
 	class="border-border bg-card/95 fixed inset-x-0 bottom-0 z-30 flex h-[calc(var(--bottom-nav-height)+var(--safe-bottom))] border-t pb-[var(--safe-bottom)] backdrop-blur-sm md:hidden"
-	aria-label="Primary"
+	aria-label={m.nav_primary_label()}
 >
 	{#each items as item (item.href)}
 		{@const active = isActive(item.href)}

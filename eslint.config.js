@@ -8,16 +8,7 @@ import svelteConfig from './svelte.config.js';
 
 export default defineConfig(
 	{
-		ignores: [
-			'build/',
-			'.svelte-kit/',
-			'dist/',
-			'drizzle/',
-			'src/lib/paraglide/',
-			'coverage/',
-			'playwright-report/',
-			'test-results/'
-		]
+		ignores: ['build/', '.vercel/', '.svelte-kit/', 'dist/', 'src/lib/paraglide/', 'coverage/']
 	},
 	js.configs.recommended,
 	ts.configs.recommended,

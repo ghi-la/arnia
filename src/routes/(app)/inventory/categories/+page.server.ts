@@ -1,21 +1,17 @@
 import { fail } from '@sveltejs/kit';
-import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { inventoryCategory } from '$lib/server/db/schema';
 import { requirePermission } from '$lib/server/auth/require-permission';
-import { getCategoryTree } from '$lib/server/services/inventory-taxonomy';
+import {
+	createCategory,
+	deleteCategory,
+	getCategoryTree
+} from '$lib/server/services/inventory-taxonomy';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requirePermission(locals.session, 'inventory.edit');
-
-	const [tree, flat] = await Promise.all([
-		getCategoryTree(),
-		db.select().from(inventoryCategory).orderBy(asc(inventoryCategory.name))
-	]);
-
-	return { tree, flat };
+	const tree = await getCategoryTree();
+	return { tree, flat: tree.map((t) => t.node) };
 };
 
 const createSchema = z.object({
@@ -36,13 +32,14 @@ export const actions: Actions = {
 			return fail(400, { errors: z.flattenError(parsed.error).fieldErrors });
 		}
 
-		await db.insert(inventoryCategory).values(parsed.data);
+		await createCategory(parsed.data);
+		return { created: parsed.data.name };
 	},
 
 	delete: async ({ request, locals }) => {
 		requirePermission(locals.session, 'inventory.edit');
 		const formData = await request.formData();
-		const id = String(formData.get('id'));
-		await db.delete(inventoryCategory).where(eq(inventoryCategory.id, id));
+		await deleteCategory(String(formData.get('id')));
+		return { deleted: true };
 	}
 };

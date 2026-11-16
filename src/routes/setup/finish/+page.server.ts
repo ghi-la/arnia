@@ -1,8 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { organization } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import { getOrganization } from '$lib/server/services/setup';
 import { seedDefaultRoles } from '$lib/server/services/setup';
 import type { Actions, PageServerLoad } from './$types';
@@ -38,10 +36,12 @@ export const actions: Actions = {
 
 		const { vatEnabled, vatNumber, seedRoles } = parsed.data;
 
-		await db
-			.update(organization)
-			.set({ vatEnabled, vatNumber, setupCompletedAt: new Date() })
-			.where(eq(organization.id, 1));
+		await collections
+			.organization()
+			.updateOne(
+				{ _id: 'default' },
+				{ $set: { vatEnabled, vatNumber, setupCompletedAt: new Date(), updatedAt: new Date() } }
+			);
 
 		if (seedRoles) {
 			await seedDefaultRoles();

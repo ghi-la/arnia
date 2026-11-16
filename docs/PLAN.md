@@ -5,55 +5,50 @@ treat section 2 (task breakdown) as the source of truth for "what's left."
 
 ## 1. Pinned dependency versions
 
-Verified against npm registry / Docker Hub on 2026-09-17. Re-check before bumping.
+Verified against the npm registry on 2026-09-17 (MongoDB/Vercel rows 2026-11-16). Re-check before bumping.
 
-| Package                         | Version                               | Notes                                                                                                                 |
-| ------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Node.js                         | 24.8.0 (LTS)                          | `node:24.8.0-alpine` in Docker                                                                                        |
-| pnpm                            | 12.4.2                                | via corepack                                                                                                          |
-| TypeScript                      | 6.0.3                                 | **not** 7.x — `typescript-eslint` requires `<6.1.0`; TS7 (native/tsgo) ecosystem support isn't there yet              |
-| svelte                          | 5.57.0                                | runes mode                                                                                                            |
-| @sveltejs/kit                   | 2.70.3                                |                                                                                                                       |
-| @sveltejs/adapter-node          | 5.5.7                                 |                                                                                                                       |
-| @sveltejs/vite-plugin-svelte    | 7.3.0                                 |                                                                                                                       |
-| vite                            | 8.3.0                                 |                                                                                                                       |
-| tailwindcss / @tailwindcss/vite | 4.3.3                                 | CSS-first config, no `tailwind.config.js`                                                                             |
-| bits-ui                         | 2.19.2                                | shadcn-svelte primitives                                                                                              |
-| shadcn-svelte (CLI)             | 1.7.0                                 | init CLI requires an interactive preset picker (shadcn-svelte.com); components hand-built on bits-ui instead — see §4 |
-| @lucide/svelte                  | 1.47.0                                | `lucide-svelte` is deprecated in favor of this scoped package                                                         |
-| tailwind-variants               | 3.3.1                                 | component variant styling (shadcn-svelte convention)                                                                  |
-| @fontsource/inter               | 5.3.0                                 | self-hosted font                                                                                                      |
-| drizzle-orm                     | 0.45.2                                |                                                                                                                       |
-| drizzle-kit                     | 0.31.10                               |                                                                                                                       |
-| postgres (driver)               | 3.4.9                                 |                                                                                                                       |
-| better-auth                     | 1.7.5                                 |                                                                                                                       |
-| resend                          | 6.28.1                                |                                                                                                                       |
-| nodemailer                      | 10.0.10                               | SMTP fallback provider                                                                                                |
-| pg-boss                         | 12.33.0                               | Postgres-backed queue                                                                                                 |
-| zod                             | 4.6.5                                 |                                                                                                                       |
-| sveltekit-superforms            | 2.30.2                                | zod4 adapter                                                                                                          |
-| formsnap                        | 2.0.1                                 |                                                                                                                       |
-| @inlang/paraglide-js            | 2.25.4                                | v2 — own Vite plugin, no separate `-sveltekit` package                                                                |
-| @vite-pwa/sveltekit             | 1.1.0                                 |                                                                                                                       |
-| swissqrbill                     | 4.4.1                                 |                                                                                                                       |
-| pdfkit                          | 0.20.2                                |                                                                                                                       |
-| @zxing/browser                  | 0.2.1                                 |                                                                                                                       |
-| imapflow                        | 2.0.5                                 |                                                                                                                       |
-| mailparser                      | 3.9.28                                |                                                                                                                       |
-| sharp                           | 0.35.4                                | thumbnails                                                                                                            |
-| qrcode                          | 1.5.4                                 | TOTP setup QR code (2FA), rendered server-side as a data URL                                                          |
-| vitest                          | 5.0.1                                 |                                                                                                                       |
-| @playwright/test                | 1.63.0                                |                                                                                                                       |
-| eslint                          | 10.10.0                               | flat config                                                                                                           |
-| typescript-eslint               | 8.70.0                                |                                                                                                                       |
-| eslint-plugin-svelte            | 3.23.0                                |                                                                                                                       |
-| prettier                        | 3.9.7                                 |                                                                                                                       |
-| svelte-check                    | 4.7.6                                 |                                                                                                                       |
-| pino                            | 10.3.1                                | structured logging                                                                                                    |
-| web-push                        | 3.6.7                                 | phase 11 only                                                                                                         |
-| PostgreSQL                      | 18.6 (Docker `postgres:18.6-alpine`)  | current stable major                                                                                                  |
-| Caddy                           | 2.11.4 (Docker `caddy:2.11.4-alpine`) | automatic HTTPS                                                                                                       |
-| Node (Docker base image)        | `node:24.8.0-alpine`                  | matches engines.node                                                                                                  |
+| Package                         | Version  | Notes                                                                                                                 |
+| ------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| Node.js                         | 24.x     | Vercel runtime (engines.node)                                                                                         |
+| pnpm                            | 12.4.2   | via corepack                                                                                                          |
+| TypeScript                      | 6.0.3    | **not** 7.x — `typescript-eslint` requires `<6.1.0`; TS7 (native/tsgo) ecosystem support isn't there yet              |
+| svelte                          | 5.57.0   | runes mode                                                                                                            |
+| @sveltejs/kit                   | 2.70.3   |                                                                                                                       |
+| @sveltejs/adapter-vercel        | 6.3.5    | Vercel serverless (Node runtime). 7.x needs SvelteKit 3                                                               |
+| @sveltejs/vite-plugin-svelte    | 7.3.0    |                                                                                                                       |
+| vite                            | 8.3.0    |                                                                                                                       |
+| tailwindcss / @tailwindcss/vite | 4.3.3    | CSS-first config, no `tailwind.config.js`                                                                             |
+| bits-ui                         | 2.19.2   | shadcn-svelte primitives                                                                                              |
+| shadcn-svelte (CLI)             | 1.7.0    | init CLI requires an interactive preset picker (shadcn-svelte.com); components hand-built on bits-ui instead — see §4 |
+| @lucide/svelte                  | 1.47.0   | `lucide-svelte` is deprecated in favor of this scoped package                                                         |
+| tailwind-variants               | 3.3.1    | component variant styling (shadcn-svelte convention)                                                                  |
+| @fontsource/inter               | 5.3.0    | self-hosted font                                                                                                      |
+| mongodb (driver)                | 7.9.0    | MongoDB Atlas; also used by Better Auth's mongodbAdapter (string UUID ids)                                            |
+| better-auth                     | 1.7.5    |                                                                                                                       |
+| resend                          | 6.28.1   |                                                                                                                       |
+| nodemailer                      | 10.0.10  | SMTP fallback provider                                                                                                |
+| zod                             | 4.6.5    |                                                                                                                       |
+| sveltekit-superforms            | 2.30.2   | zod4 adapter                                                                                                          |
+| formsnap                        | 2.0.1    |                                                                                                                       |
+| @inlang/paraglide-js            | 2.25.4   | v2 — own Vite plugin, no separate `-sveltekit` package                                                                |
+| @vite-pwa/sveltekit             | 1.1.0    |                                                                                                                       |
+| swissqrbill                     | 4.4.1    |                                                                                                                       |
+| pdfkit                          | 0.20.2   |                                                                                                                       |
+| @zxing/browser                  | 0.2.1    |                                                                                                                       |
+| imapflow                        | 2.0.5    |                                                                                                                       |
+| mailparser                      | 3.9.28   |                                                                                                                       |
+| sharp                           | 0.35.4   | thumbnails                                                                                                            |
+| @aws-sdk/client-s3              | 3.1169.0 | Cloudflare R2 (S3 API) client for attachment storage — see docs/storage-r2.md                                         |
+| svelte-sonner                   | 1.2.3    | toasts (shadcn-svelte's toast component) — every form action's success/error feedback                                 |
+| qrcode                          | 1.5.4    | TOTP setup QR code (2FA), rendered server-side as a data URL                                                          |
+| vitest                          | 5.0.1    |                                                                                                                       |
+| eslint                          | 10.10.0  | flat config                                                                                                           |
+| typescript-eslint               | 8.70.0   |                                                                                                                       |
+| eslint-plugin-svelte            | 3.23.0   |                                                                                                                       |
+| prettier                        | 3.9.7    |                                                                                                                       |
+| svelte-check                    | 4.7.6    |                                                                                                                       |
+| pino                            | 10.3.1   | structured logging                                                                                                    |
+| web-push                        | 3.6.7    | phase 11 only                                                                                                         |
 
 ## 2. Phase checklist
 
@@ -70,14 +65,20 @@ Verified against npm registry / Docker Hub on 2026-09-17. Re-check before bumpin
 - [ ] Phase 10 — Hardening & release (v0.1.0)
 - [ ] Phase 11 — Optional Web Push
 
-Each phase ends with: lint + check + unit tests + relevant e2e green, app runs via
-`docker compose up`, `CHANGELOG.md` updated, commit.
+Each phase ends with: lint + check + unit tests green, the changed flows clicked through on
+`pnpm dev` against a dev database, `CHANGELOG.md` updated, commit (Vercel deploys main).
 
-## 3. Database schema draft
+## 3. Data model draft
 
-Money = integer minor units (`bigint`) + `currency` char(3). Timestamps = `timestamptz`.
-All business tables carry `created_at`, `updated_at`; mutable domain tables carry
-`created_by`/`updated_by` where useful for audit.
+**MongoDB (Atlas)** since 2026-11-16 — the entities below were drafted as SQL tables; each is
+now a collection with a string UUID `_id` (document shapes: `src/lib/server/db/types.ts`).
+Join tables are embedded where it's simpler (`role.permissions: string[]` replaces
+`role_permission`); `user_role` stays a collection with `_id = userId:roleId`. Field names are
+camelCase in documents.
+
+Money = integer minor units + `currency` (3-letter code). Timestamps = `Date`.
+All business documents carry `createdAt`, `updatedAt`; mutable domain documents carry
+`createdBy`/`updatedBy` where useful for audit.
 
 ### Core / platform
 
@@ -118,7 +119,8 @@ Not yet implemented (later phases): **event_team_member** (Phase 4, needs `event
   (consumable/equipment), min_threshold, supplier, notes, avg_cost_minor, current_qty
   (cached), equipment_tracking (unit/quantity), purchase_value_minor, usage_cost_minor,
   condition (for single-unit equipment).
-- **item_photo**: item_id, attachment_id.
+- Item photos: no separate table — `attachment` rows with `entity_type = 'item'` (the oldest
+  image is the cover). See §4.
 - **stock_movement**: id, item_id, type (purchase/consumption/checkout/return/adjustment/
   disposal), qty, unit_cost_minor, event_id (nullable), reason, condition_on_return,
   created_by, created_at.
@@ -165,10 +167,10 @@ Not yet implemented (later phases): **event_team_member** (Phase 4, needs `event
 ### Attachments
 
 - **attachment**: id, entity_type, entity_id, path, thumbnail_path, mime, size, uploaded_by.
+  `path` / `thumbnail_path` are Cloudflare R2 object keys (`{year}/{entity_type}/{id}.{ext}`).
 
-Exact Drizzle table definitions are written per-phase in `src/lib/server/db/schema/*.ts`
-(one file per module) as each phase is implemented, and kept in sync with this draft.
-See `docs/data-model.md` (added in Phase 1) for the generated ER diagram.
+Document types are added per phase to `src/lib/server/db/types.ts` (and typed accessors to
+`collections` in `db/index.ts`, indexes to `ensureIndexes`) as each module is implemented.
 
 ## 4. Notes / decisions log
 
@@ -278,3 +280,45 @@ package '$lib'`) once `src/worker.ts` grew real imports in Phase 2. Two compound
     scroll position until now. Fixed everywhere by centering the button (full-width) on mobile
     and right-aligning only from `sm:` up: `justify-center sm:justify-end` on the wrapper, plus
     `w-full sm:w-auto` on the button. `setup/*` pages are unaffected (their layout has no FAB).
+- **UX feedback & R2 storage decisions:**
+  - **Every form goes through `createSubmit()`** (`src/lib/client/submit.svelte.ts`): pending
+    state (`<Button loading>`), optional confirmation (`confirmDialog`, one
+    `<ConfirmDialogHost>` in the root layout), and a toast (`svelte-sonner`, one `<Toaster>` in
+    the root layout) for success / `fail()` / crash. Success toasts are shown on `redirect`
+    results too — before `update()` navigates — so create/edit flows get feedback without a
+    flash-cookie library. `type: 'error'` results (403, network down) toast and stay on the
+    page instead of swapping to the error page over a button press. Per-row forms share one
+    instance and use `isPending(id)` (keyed on the `id` field, or `keyField`).
+  - Field errors are rendered via `FieldError` with localized messages per field; Zod's English
+    messages are never shown to users. Error pages (`+error.svelte`) are localized per status.
+  - A thin navigation progress bar (`navigating` from `$app/state`) appears after 150 ms so
+    fast navigations don't flicker.
+  - **Attachments live in Cloudflare R2 only** (decided with the maintainer: no local-disk
+    driver). Uploads go through the app (browser-side `compressImage` → form action → magic-byte
+    check + sharp thumbnail → `PutObject`); downloads are streamed through `/attachments/[id]`
+    after `canAccessAttachment`. The bucket stays private, CSP is unchanged (same-origin), and
+    no R2 CORS config is needed. The S3 client is created lazily on first use, so builds need no
+    R2 credentials. The nightly `backup` service no longer covers files — see
+    `docs/storage-r2.md` ("Backups").
+  - `item_photo` from the schema draft was dropped: `attachment` is already polymorphic, so a
+    join table added nothing.
+  - Stock-count movements store the marker `inventory_count` as their `reason` (translated at
+    display time via `movementReasonLabel`) instead of English text.
+- **Platform switch (2026-11-16): Vercel + MongoDB Atlas, no Docker/Postgres/CI.** Decided by
+  the maintainer. Consequences:
+  - Drizzle/Postgres → official `mongodb` driver (no ODM): typed `collections`, explicit
+    `withTransaction` for multi-document writes (Atlas clusters are replica sets), no
+    migrations (indexes ensured per cold start). Better Auth uses `mongodbAdapter` with
+    `generateId: () => crypto.randomUUID()` so its ids are strings like ours.
+  - `SELECT … FOR UPDATE` in `recordMovement` → plain read + update inside a transaction:
+    concurrent movements on one item make one transaction hit a write conflict, which the
+    driver retries with fresh data (verified: 5 parallel consumptions → exact stock).
+  - pg-boss + `src/worker.ts` removed: emails are sent inline (`email/send.ts`, logged to
+    `email_log`). Future scheduled jobs → Vercel Cron routes.
+  - Docker, Caddy, backup/restore scripts, Playwright e2e and the GitHub Actions workflow
+    removed. Backups: Atlas (database) + bucket mirror (R2, see `docs/storage-r2.md`).
+  - Vercel's 4.5 MB body limit → photo uploads capped at 4 MB (compressed client-side, one
+    request per photo). Item attachments are images only.
+  - Builds need no secrets: Mongo/R2 clients are lazy, Better Auth gets a placeholder secret
+    while `building`. The Docker-era notes above (worker imports, build-time placeholder ENV,
+    crash-looping container) are historical.

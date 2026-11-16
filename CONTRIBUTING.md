@@ -6,12 +6,12 @@ things stand); expect some churn while the foundations settle.
 ## Getting set up
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d   # Postgres + Mailpit
 pnpm install
-cp .env.example .env   # DATABASE_URL → localhost:5432, EMAIL_PROVIDER=smtp
-pnpm db:migrate
+cp .env.example .env   # set MONGODB_URI (use a separate dev database), BETTER_AUTH_SECRET
 pnpm dev
 ```
+
+The database needs no migration step: collections and indexes are created on first use.
 
 See `CLAUDE.md` for architecture notes, conventions, and the full command list — it's written
 for AI-assisted work but is equally useful for humans.
@@ -21,11 +21,10 @@ for AI-assisted work but is equally useful for humans.
 ```bash
 pnpm lint      # prettier --check + eslint
 pnpm check     # svelte-check (types)
-pnpm test:unit
-pnpm test:e2e  # needs a running app + db; see docker-compose.dev.yml
+pnpm test:unit # no database needed
 ```
 
-All four must pass. CI runs the same checks plus a Docker build.
+All three must pass. Deploys happen on Vercel from the main branch (see `docs/deploy-vercel.md`).
 
 ## Conventions
 

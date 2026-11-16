@@ -5,7 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { resolve } from '$app/paths';
-	import { Package, ChevronRight } from '@lucide/svelte';
+	import { Package, ChevronRight, ImageOff } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -28,16 +28,25 @@
 			type="search"
 			name="q"
 			placeholder={m.inventory_search_label()}
+			aria-label={m.inventory_search_label()}
 			value={data.filters.search}
 		/>
 		<div class="grid grid-cols-2 gap-2">
-			<select name="category" class="border-input bg-card h-11 rounded-md border px-3 text-sm">
+			<select
+				name="category"
+				aria-label={m.inventory_filter_category()}
+				class="border-input bg-card h-11 rounded-md border px-3 text-sm"
+			>
 				<option value="">{m.inventory_filter_category()}: {m.inventory_filter_all()}</option>
 				{#each data.categories as c (c.id)}
 					<option value={c.id} selected={data.filters.categoryId === c.id}>{c.name}</option>
 				{/each}
 			</select>
-			<select name="location" class="border-input bg-card h-11 rounded-md border px-3 text-sm">
+			<select
+				name="location"
+				aria-label={m.inventory_filter_location()}
+				class="border-input bg-card h-11 rounded-md border px-3 text-sm"
+			>
 				<option value="">{m.inventory_filter_location()}: {m.inventory_filter_all()}</option>
 				{#each data.locations as l (l.id)}
 					<option value={l.id} selected={data.filters.locationId === l.id}>{l.name}</option>
@@ -48,7 +57,7 @@
 			<input type="checkbox" name="lowStock" value="1" checked={data.filters.lowStockOnly} />
 			{m.inventory_filter_low_stock()}
 		</label>
-		<Button type="submit" variant="outline" size="sm">{m.common_continue()}</Button>
+		<Button type="submit" variant="outline" size="sm">{m.inventory_filter_apply()}</Button>
 	</form>
 
 	<div class="flex flex-wrap gap-4 text-sm">
@@ -79,7 +88,17 @@
 		{/if}
 	</div>
 
-	{#if data.items.length === 0}
+	{#if data.items.length === 0 && (data.filters.search || data.filters.categoryId || data.filters.locationId || data.filters.lowStockOnly)}
+		<Card>
+			<CardContent class="flex flex-col items-center gap-3 py-10 text-center">
+				<Package class="text-muted-foreground size-10" aria-hidden="true" />
+				<p class="font-medium">{m.inventory_no_matches()}</p>
+				<Button href={resolve('/inventory')} variant="outline" size="sm">
+					{m.inventory_filter_clear()}
+				</Button>
+			</CardContent>
+		</Card>
+	{:else if data.items.length === 0}
 		<Card>
 			<CardContent class="flex flex-col items-center gap-3 py-10 text-center">
 				<Package class="text-muted-foreground size-10" />
@@ -99,9 +118,24 @@
 				<li>
 					<a
 						href={resolve('/(app)/inventory/items/[id]', { id: it.id })}
-						class="border-border bg-card flex items-center justify-between gap-3 rounded-xl border p-3.5"
+						class="border-border bg-card flex items-center justify-between gap-3 rounded-xl border p-3"
 					>
-						<div class="min-w-0">
+						<div
+							class="bg-muted flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+						>
+							{#if it.coverId}
+								<img
+									src={resolve('/attachments/[id]', { id: it.coverId }) + '?size=thumb'}
+									alt=""
+									loading="lazy"
+									decoding="async"
+									class="size-full object-cover"
+								/>
+							{:else}
+								<ImageOff class="text-muted-foreground/50 size-4" aria-hidden="true" />
+							{/if}
+						</div>
+						<div class="min-w-0 flex-1">
 							<p class="truncate font-medium">{it.name}</p>
 							<p class="text-muted-foreground truncate text-xs">
 								{it.categoryName ?? ''}{it.categoryName && it.locationName

@@ -1,69 +1,66 @@
-import { eq, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { organization, role, rolePermission, user, userRole } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
+import { userRoleId, type OrganizationDoc } from '$lib/server/db/types';
 import { DEFAULT_ROLES } from '$lib/server/auth/permissions';
 
 export async function getUserCount(): Promise<number> {
-	const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(user);
-	return Number(count);
+	return collections.user().countDocuments();
 }
 
-export async function getOrganization() {
-	const [org] = await db.select().from(organization).limit(1);
-	return org ?? null;
+export async function getOrganization(): Promise<OrganizationDoc | null> {
+	return collections.organization().findOne({ _id: 'default' });
 }
 
 export async function isSetupComplete(): Promise<boolean> {
-	const org = await getOrganization();
+	const org = await collections
+		.organization()
+		.findOne({ _id: 'default' }, { projection: { setupCompletedAt: 1 } });
 	return !!org?.setupCompletedAt;
 }
 
 /** Creates the Admin role (all permissions) if missing and assigns it to `userId`. */
 export async function ensureAdminRole(userId: string): Promise<void> {
 	const adminDef = DEFAULT_ROLES.find((r) => r.key === 'admin')!;
+	const roleId = await ensureRole(adminDef.key, adminDef.name, adminDef.permissions);
 
-	const [existing] = await db
-		.select({ id: role.id })
-		.from(role)
-		.where(eq(role.key, 'admin'))
-		.limit(1);
-
-	const roleId =
-		existing?.id ?? (await createRole(adminDef.key, adminDef.name, adminDef.permissions, true));
-
-	await db.insert(userRole).values({ userId, roleId }).onConflictDoNothing();
+	await collections
+		.userRole()
+		.updateOne(
+			{ _id: userRoleId(userId, roleId) },
+			{ $setOnInsert: { userId, roleId } },
+			{ upsert: true }
+		);
 }
 
 /** Seeds the remaining default roles (everything but Admin, already created at setup). */
 export async function seedDefaultRoles(): Promise<void> {
 	for (const def of DEFAULT_ROLES) {
 		if (def.key === 'admin') continue;
-		const [existing] = await db
-			.select({ id: role.id })
-			.from(role)
-			.where(eq(role.key, def.key))
-			.limit(1);
-		if (existing) continue;
-		await createRole(def.key, def.name, def.permissions, true);
+		await ensureRole(def.key, def.name, def.permissions);
 	}
 }
 
-async function createRole(
+/** Idempotent: returns the existing role's id, or creates it as a system role. */
+async function ensureRole(
 	key: string,
 	name: string,
-	permissions: readonly string[],
-	isSystem: boolean
+	permissions: readonly string[]
 ): Promise<string> {
-	const [created] = await db
-		.insert(role)
-		.values({ key, name, isSystem })
-		.returning({ id: role.id });
-
-	if (permissions.length > 0) {
-		await db
-			.insert(rolePermission)
-			.values(permissions.map((permissionKey) => ({ roleId: created.id, permissionKey })));
-	}
-
-	return created.id;
+	const now = new Date();
+	const result = await collections.role().findOneAndUpdate(
+		{ key },
+		{
+			$setOnInsert: {
+				_id: crypto.randomUUID(),
+				key,
+				name,
+				description: null,
+				isSystem: true,
+				permissions: [...permissions],
+				createdAt: now,
+				updatedAt: now
+			}
+		},
+		{ upsert: true, returnDocument: 'after', projection: { _id: 1 } }
+	);
+	return result!._id;
 }

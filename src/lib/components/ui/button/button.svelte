@@ -31,6 +31,7 @@
 
 <script lang="ts">
 	import type { HTMLButtonAttributes, HTMLAnchorAttributes } from 'svelte/elements';
+	import { LoaderCircle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
 	type Props = Omit<HTMLButtonAttributes & HTMLAnchorAttributes, 'type'> & {
@@ -39,6 +40,12 @@
 		size?: ButtonSize;
 		href?: string;
 		class?: string;
+		/**
+		 * Shows a spinner over the label and disables the button while an
+		 * action is in flight. The label stays in the DOM (invisible) so the
+		 * button keeps its width and the layout doesn't jump.
+		 */
+		loading?: boolean;
 		children?: import('svelte').Snippet;
 	};
 
@@ -48,6 +55,8 @@
 		size = 'default',
 		href,
 		type = 'button',
+		loading = false,
+		disabled,
 		children,
 		...restProps
 	}: Props = $props();
@@ -65,7 +74,24 @@
 	</a>
 	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
-	<button {type} class={cn(buttonVariants({ variant, size }), className)} {...restProps}>
-		{@render children?.()}
+	<button
+		{type}
+		class={cn(
+			buttonVariants({ variant, size }),
+			loading && 'relative disabled:opacity-80',
+			className
+		)}
+		disabled={disabled || loading}
+		aria-busy={loading || undefined}
+		{...restProps}
+	>
+		{#if loading}
+			<span class="invisible inline-flex items-center gap-2">{@render children?.()}</span>
+			<span class="absolute inset-0 flex items-center justify-center">
+				<LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
+			</span>
+		{:else}
+			{@render children?.()}
+		{/if}
 	</button>
 {/if}

@@ -4,9 +4,18 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
+	import { enhance } from '$app/forms';
+	import FieldError from '$lib/components/feedback/field-error.svelte';
+	import { createSubmit } from '$lib/client/submit.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const accept = createSubmit({
+		error: false,
+		success: () =>
+			data.pending?.userExists ? m.invite_accept_done_existing() : m.invite_accept_done_new()
+	});
 </script>
 
 <svelte:head>
@@ -29,7 +38,7 @@
 							? m.invite_accept_intro_existing()
 							: m.invite_accept_intro_new({ orgName: data.orgName })}
 					</p>
-					<form method="POST" class="flex flex-col gap-4">
+					<form method="POST" use:enhance={accept.enhance} class="flex flex-col gap-4">
 						{#if !data.pending.userExists}
 							<div class="flex flex-col gap-1.5">
 								<Label for="name">{m.common_name()}</Label>
@@ -45,12 +54,16 @@
 								required
 								minlength={10}
 								autocomplete="new-password"
+								aria-invalid={form?.error === 'weak_password' ? true : undefined}
+								aria-describedby="password-hint"
 							/>
+							{#if form?.error === 'weak_password'}
+								<FieldError id="password-hint" error={m.password_rule()} />
+							{:else}
+								<p id="password-hint" class="text-muted-foreground text-xs">{m.password_rule()}</p>
+							{/if}
 						</div>
-						{#if form?.error === 'weak_password'}
-							<p class="text-destructive text-sm">{m.common_error_generic()}</p>
-						{/if}
-						<Button type="submit">{m.invite_accept_submit()}</Button>
+						<Button type="submit" loading={accept.pending}>{m.invite_accept_submit()}</Button>
 					</form>
 				{/if}
 			</CardContent>

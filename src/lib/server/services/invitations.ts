@@ -1,8 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { and, eq, gt, isNull } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { invitation, organization, user, userRole } from '$lib/server/db/schema';
-import { enqueueEmail } from '$lib/server/jobs/queue';
+import { collections, withTransaction } from '$lib/server/db';
+import { userRoleId } from '$lib/server/db/types';
+import { sendEmail } from '$lib/server/email/send';
 import { inviteEmail, type Locale } from '$lib/server/email/templates/auth-emails';
 import { setUserPassword } from './set-password';
 
@@ -13,11 +12,10 @@ function hashToken(token: string): string {
 }
 
 async function getOrgNameAndLocale(): Promise<{ name: string; locale: Locale }> {
-	const [org] = await db
-		.select({ name: organization.name, locale: organization.defaultLocale })
-		.from(organization)
-		.limit(1);
-	return { name: org?.name ?? 'Arnia', locale: (org?.locale as Locale) ?? 'it' };
+	const org = await collections
+		.organization()
+		.findOne({ _id: 'default' }, { projection: { name: 1, defaultLocale: 1 } });
+	return { name: org?.name ?? 'Arnia', locale: (org?.defaultLocale as Locale) ?? 'it' };
 }
 
 export interface CreateInvitationResult {
@@ -43,11 +41,20 @@ export async function createInvitation(params: {
 	const tokenHash = hashToken(token);
 	const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
 
-	await db.insert(invitation).values({ email, roleIds, tokenHash, invitedBy, expiresAt });
+	await collections.invitation().insertOne({
+		_id: crypto.randomUUID(),
+		email,
+		roleIds,
+		tokenHash,
+		invitedBy,
+		expiresAt,
+		acceptedAt: null,
+		createdAt: new Date()
+	});
 
 	const url = `${origin}/accept-invite/${token}`;
 
-	// With no provider configured there is nothing to enqueue — the admin UI
+	// With no provider configured there is nothing to send — the admin UI
 	// shows the link to copy instead (spec §2.2).
 	if ((process.env.EMAIL_PROVIDER ?? 'none') === 'none') {
 		return { url, emailSent: false };
@@ -57,7 +64,7 @@ export async function createInvitation(params: {
 	let emailSent: boolean;
 	try {
 		const email_ = inviteEmail({ locale, orgName, url });
-		await enqueueEmail({ ...email_, to: email, template: 'invite' });
+		await sendEmail({ ...email_, to: email, template: 'invite' });
 		emailSent = true;
 	} catch {
 		emailSent = false;
@@ -77,27 +84,16 @@ export interface PendingInvitation {
 export async function getPendingInvitation(token: string): Promise<PendingInvitation | null> {
 	const tokenHash = hashToken(token);
 
-	const [row] = await db
-		.select()
-		.from(invitation)
-		.where(
-			and(
-				eq(invitation.tokenHash, tokenHash),
-				isNull(invitation.acceptedAt),
-				gt(invitation.expiresAt, new Date())
-			)
-		)
-		.limit(1);
-
+	const row = await collections
+		.invitation()
+		.findOne({ tokenHash, acceptedAt: null, expiresAt: { $gt: new Date() } });
 	if (!row) return null;
 
-	const [existing] = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.email, row.email))
-		.limit(1);
+	const existing = await collections
+		.user()
+		.findOne({ email: row.email }, { projection: { _id: 1 } });
 
-	return { id: row.id, email: row.email, roleIds: row.roleIds, userExists: !!existing };
+	return { id: row._id, email: row.email, roleIds: row.roleIds, userExists: !!existing };
 }
 
 /**
@@ -117,16 +113,21 @@ export async function redeemInvitationForExistingUser(params: {
 
 	await setUserPassword(userId, newPassword);
 
-	await db.transaction(async (tx) => {
+	await withTransaction(async (session) => {
 		if (roleIds.length > 0) {
-			await tx
-				.insert(userRole)
-				.values(roleIds.map((roleId) => ({ userId, roleId })))
-				.onConflictDoNothing();
+			await collections.userRole().bulkWrite(
+				roleIds.map((roleId) => ({
+					updateOne: {
+						filter: { _id: userRoleId(userId, roleId) },
+						update: { $setOnInsert: { userId, roleId } },
+						upsert: true
+					}
+				})),
+				{ session }
+			);
 		}
-		await tx
-			.update(invitation)
-			.set({ acceptedAt: new Date() })
-			.where(eq(invitation.id, invitationId));
+		await collections
+			.invitation()
+			.updateOne({ _id: invitationId }, { $set: { acceptedAt: new Date() } }, { session });
 	});
 }

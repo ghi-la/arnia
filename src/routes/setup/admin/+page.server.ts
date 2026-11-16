@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { APIError } from 'better-auth';
 import { z } from 'zod';
 import { auth } from '$lib/server/auth';
 import { getUserCount, ensureAdminRole } from '$lib/server/services/setup';
@@ -36,11 +37,23 @@ export const actions: Actions = {
 			});
 		}
 
-		const result = await auth.api.signUpEmail({
-			body: parsed.data,
-			headers: event.request.headers,
-			asResponse: false
-		});
+		let result;
+		try {
+			result = await auth.api.signUpEmail({
+				body: parsed.data,
+				headers: event.request.headers,
+				asResponse: false
+			});
+		} catch (err) {
+			if (err instanceof APIError) {
+				return fail(400, {
+					values: { name: formData.get('name'), email: formData.get('email') },
+					errors: {} as Record<string, string[] | undefined>,
+					signupError: true
+				});
+			}
+			throw err;
+		}
 
 		await ensureAdminRole(result.user.id);
 

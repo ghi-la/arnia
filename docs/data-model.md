@@ -1,15 +1,16 @@
 # Data model
 
-This is the target schema from `docs/PLAN.md` §3, rendered as an ER diagram. **As of Phase 2,
-`organization`, the Better Auth tables (`user`/`session`/`account`/`verification`/
-`two_factor`), and RBAC (`role`/`role_permission`/`user_role`/`invitation`/`activity_event`/
-`email_log`) are implemented** (`src/lib/server/db/schema/`) — the rest is added incrementally,
-one module per phase, and this diagram grows to match. Treat anything not yet in
-`src/lib/server/db/schema/` as a design draft, not current state. Note: `event_team_member` is
-shown below as planned (Phase 4, alongside `event`) even though core RBAC is done — it needs
-the `event` table, which doesn't exist yet.
+This is the target data model from `docs/PLAN.md` §3, drawn as an ER diagram. **Storage is
+MongoDB (Atlas)**: each entity is a collection with a string UUID `_id`, and the implemented
+document shapes live in `src/lib/server/db/types.ts`, which is the source of truth. Implemented
+so far: `organization`, Better Auth's `user`/`session`/`account`/`verification`/`twoFactor`,
+`role` (with **embedded** `permissions`, so `role_permission` below is not a separate
+collection), `user_role`, `invitation`, `activity_event`, `email_log`, `location`,
+`inventory_category`, `item`, `stock_movement`, `attachment`. Everything else is a design
+draft. Relationships are plain id fields: there are no foreign keys, so cascades are done in
+services.
 
-Money columns are integer minor units (`bigint`) + a `currency` code — never floating point.
+Money fields are integer minor units + a `currency` code — never floating point.
 Most tables also carry `created_at`/`updated_at` (and often `created_by`), omitted below to
 keep the diagram legible.
 

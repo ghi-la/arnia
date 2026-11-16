@@ -19,7 +19,7 @@
 	<div class="mb-8 flex items-center gap-2 px-3">
 		<span class="text-primary text-lg font-semibold">{m.app_name()}</span>
 	</div>
-	<nav class="flex flex-1 flex-col gap-1" aria-label="Primary">
+	<nav class="flex flex-1 flex-col gap-1" aria-label={m.nav_primary_label()}>
 		{#each items as item (item.href)}
 			{@const active = isActive(item.href)}
 			<a

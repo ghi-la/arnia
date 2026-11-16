@@ -1,27 +1,25 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { asc, isNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '$lib/server/db';
-import { item } from '$lib/server/db/schema';
 import { requirePermission } from '$lib/server/auth/require-permission';
-import { InsufficientStockError, recordMovement } from '$lib/server/services/inventory';
+import {
+	InsufficientStockError,
+	ItemNotFoundError,
+	listItems,
+	recordMovement
+} from '$lib/server/services/inventory';
 import { resolve } from '$app/paths';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requirePermission(locals.session, 'inventory.adjust_stock');
 
-	const items = await db
-		.select({
-			id: item.id,
-			name: item.name,
-			sku: item.sku,
-			unit: item.unit,
-			currentQty: item.currentQty
-		})
-		.from(item)
-		.where(isNull(item.archivedAt))
-		.orderBy(asc(item.name));
+	const items = (await listItems()).map((it) => ({
+		id: it.id,
+		name: it.name,
+		sku: it.sku,
+		unit: it.unit,
+		currentQty: it.currentQty
+	}));
 
 	return { items, preselectedItemId: url.searchParams.get('itemId') ?? '' };
 };
@@ -81,6 +79,12 @@ export const actions: Actions = {
 				createdBy: session.user.id
 			});
 		} catch (err) {
+			if (err instanceof ItemNotFoundError) {
+				return fail(404, {
+					values: Object.fromEntries(formData) as Record<string, string>,
+					notFound: true
+				});
+			}
 			if (err instanceof InsufficientStockError) {
 				return fail(400, {
 					values: Object.fromEntries(formData) as Record<string, string>,

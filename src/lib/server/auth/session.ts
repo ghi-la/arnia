@@ -1,6 +1,4 @@
-import { eq } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import { role, rolePermission, userRole } from '$lib/server/db/schema';
+import { collections } from '$lib/server/db';
 import { isPermission, type Permission } from './permissions';
 
 export interface SessionContext {
@@ -20,22 +18,20 @@ export async function loadPermissions(userId: string): Promise<{
 	permissions: Set<Permission>;
 	roles: string[];
 }> {
-	const rows = await db
-		.select({ roleKey: role.key, permissionKey: rolePermission.permissionKey })
-		.from(userRole)
-		.innerJoin(role, eq(userRole.roleId, role.id))
-		.leftJoin(rolePermission, eq(rolePermission.roleId, role.id))
-		.where(eq(userRole.userId, userId));
+	const assignments = await collections.userRole().find({ userId }).toArray();
+	if (assignments.length === 0) return { permissions: new Set(), roles: [] };
+
+	const roles = await collections
+		.role()
+		.find({ _id: { $in: assignments.map((a) => a.roleId) } })
+		.toArray();
 
 	const permissions = new Set<Permission>();
-	const roles = new Set<string>();
-
-	for (const row of rows) {
-		roles.add(row.roleKey);
-		if (row.permissionKey && isPermission(row.permissionKey)) {
-			permissions.add(row.permissionKey);
+	for (const r of roles) {
+		for (const key of r.permissions) {
+			if (isPermission(key)) permissions.add(key);
 		}
 	}
 
-	return { permissions, roles: [...roles] };
+	return { permissions, roles: roles.map((r) => r.key) };
 }

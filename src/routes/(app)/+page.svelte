@@ -17,15 +17,10 @@
 	<Card>
 		<CardHeader>
 			<CardTitle>{m.app_name()}</CardTitle>
-			<CardDescription
-				>Foundation scaffold — dashboard content arrives in later phases.</CardDescription
-			>
+			<CardDescription>{m.home_placeholder_title()}</CardDescription>
 		</CardHeader>
 		<CardContent>
-			<p class="text-muted-foreground text-sm">
-				This is the authenticated app shell: bottom navigation on mobile, sidebar on desktop, theme
-				toggle, and a floating quick-action button.
-			</p>
+			<p class="text-muted-foreground text-sm">{m.home_placeholder_body()}</p>
 		</CardContent>
 	</Card>
 </div>

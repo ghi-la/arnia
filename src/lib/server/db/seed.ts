@@ -11,6 +11,7 @@
 // Not implemented yet: --demo seeding needs inventory/events/finance/invoice
 // modules that don't exist until later phases. Running with --demo today
 // only seeds roles, same as without it.
+import { client } from '$lib/server/db';
 import { seedDefaultRoles } from '$lib/server/services/setup';
 
 const demo = process.argv.includes('--demo');
@@ -23,5 +24,5 @@ if (demo) {
 	console.log('[seed] (needs inventory/events/finance/invoices — see docs/PLAN.md §8)');
 }
 
-// The postgres connection pool (src/lib/server/db) stays open otherwise.
-process.exit(0);
+// The MongoDB connection pool (src/lib/server/db) keeps the process alive otherwise.
+await client.close();

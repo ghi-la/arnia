@@ -6,6 +6,23 @@ versioning releases yet (pre-1.0, see `docs/PLAN.md`).
 
 ## [Unreleased]
 
+### Changed — Platform: Vercel + MongoDB Atlas
+
+- Deployment moved to Vercel (`@sveltejs/adapter-vercel`) and data to MongoDB Atlas (official
+  `mongodb` driver, Better Auth `mongodbAdapter`, string UUID ids, transactions for
+  multi-document writes). No migrations: indexes are ensured on first use.
+- Removed Docker/Compose, Caddy, Postgres/Drizzle, the pg-boss worker (emails are now sent
+  inline and logged to `email_log`), backup/restore scripts, Playwright e2e and the GitHub
+  Actions workflow. See `docs/deploy-vercel.md`.
+
+### Added — Feedback, item photos (Cloudflare R2)
+
+- Every form shows a pending state and a success/error toast; destructive actions ask for
+  confirmation; localized error pages; navigation progress bar.
+- Item photos (images only) stored in a private Cloudflare R2 bucket: added while creating or
+  editing an item, compressed in the browser, served through a permission-checked route. Setup:
+  `docs/storage-r2.md`.
+
 ### Added — Phase 1: Foundation
 
 - Project scaffolding: SvelteKit 2 (Svelte 5, runes) + TypeScript strict, Vite 8, pinned exact
