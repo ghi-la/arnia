@@ -58,7 +58,7 @@
 		"@inlang/paraglide-js": "2.25.4",
 		"@lucide/svelte": "1.47.0",
 		"@zxing/browser": "0.2.1",
-		"better-auth": "1.7.5",
+		"better-auth": "1.7.22",
 		"bits-ui": "2.19.2",
 		"clsx": "2.1.1",
 		"formsnap": "2.0.1",
