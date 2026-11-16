@@ -176,8 +176,8 @@ importers:
         specifier: 2.25.4
         version: 2.25.4(typescript@6.0.3)(vite@8.3.0(@types/node@22.20.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
       '@lucide/svelte':
-        specifier: 1.47.0
-        version: 1.47.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))
+        specifier: 1.72.0
+        version: 1.72.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))
       '@zxing/browser':
         specifier: 0.2.1
         version: 0.2.1(@zxing/library@0.23.0)
@@ -1863,8 +1863,8 @@ packages:
   '@lix-js/sdk@0.17.0':
     resolution: {integrity: sha512-xplbKYEokKbm0/soUy9eXlROF55Si1J9HK97iwJrNl/av1VixZ2mvpDTa0QsX96UyxFnzkXru6hngjtIJTl73g==}
 
-  '@lucide/svelte@1.47.0':
-    resolution: {integrity: sha512-tpuE7JIK9FzYDWsJx6PxHj9ROyCpnDxZfvHu5q5yHGKS2CFNjzSyf1o9/Ypu2A27GLvkPGqZcIMrF6idM+eQZQ==}
+  '@lucide/svelte@1.72.0':
+    resolution: {integrity: sha512-DRwtZ5p/m5ZRsNlfCzELJRDzd2z19mc76eMs8rwllx/JWfvykmLoTFs3RyzFN519ldQxHt8Jxum/LKukgzuTLQ==}
     peerDependencies:
       svelte: ^5
 
@@ -6914,7 +6914,7 @@ snapshots:
       '@lix-js/sdk-linux-x64': 0.17.0
       '@lix-js/sdk-win32-x64': 0.17.0
 
-  '@lucide/svelte@1.47.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))':
+  '@lucide/svelte@1.72.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))':
     dependencies:
       svelte: 5.57.0(@typescript-eslint/types@8.70.0)
 
